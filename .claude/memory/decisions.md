@@ -107,6 +107,44 @@ Archivo baseline: `prisma/migrations/0001_init.sql` (1796 líneas).
 
 ---
 
+## 2026-05-19 — RLS aplicado y validado (Doc 4 §8.4 #1 ✅)
+
+**Decisión:** Patrón híbrido de RLS aplicado a las 66 tablas del schema.
+
+**Implementación:**
+- Helper functions SQL: `current_user_workspace_id()` y `is_super_admin()` (SECURITY DEFINER, STABLE)
+- 51 tablas con `workspaceId` directo → policies que comparan con `current_user_workspace_id()`
+- 15 child tables sin `workspaceId` → policies que validan vía EXISTS al parent
+- Workspace + User → policies especiales
+- Todas las policies son `TO authenticated` (Prisma con rol `postgres` no se ve afectado)
+
+**Archivos:**
+- `prisma/migrations/0002_rls.sql` — policies de tablas con workspaceId (262 statements)
+- `prisma/migrations/0003_rls_children.sql` — policies de child tables (75 statements)
+- `prisma/scripts/generate-rls.mjs` — generator del 0002
+- `prisma/scripts/generate-rls-children.mjs` — generator del 0003
+- `prisma/scripts/verify-rls.mjs` — auditoría del estado
+- `prisma/scripts/test-rls-isolation.mjs` — test end-to-end de aislamiento
+
+**Estado final BD:**
+- 66/66 tablas con RLS habilitado
+- 264 policies activas
+- 2 helpers SQL desplegados
+
+**Test de validación (8/8 ✓):**
+- User A ve solo su workspace ✓
+- User B ve solo su workspace ✓
+- Aislamiento cross-workspace verificado ✓
+- Anónimo no ve nada ✓
+- INSERT cross-workspace bloqueado por RLS ✓
+
+**Importante para el código de la app:**
+- Prisma (`lib/db.ts`) conecta como rol `postgres` → bypassea RLS
+- Toda Server Action DEBE validar `workspaceId` antes de cualquier query (ver `.claude/rules/multi-tenant.md`)
+- Para reads desde el cliente browser, usar `@supabase/ssr` que respeta RLS automáticamente
+
+---
+
 ## 2026-05-19 — Comunicación de modelo recomendado
 
 **Decisión:** Per `user_preferences.md`, antes de iniciar cada fase, recomendar explícitamente qué modelo usar:
