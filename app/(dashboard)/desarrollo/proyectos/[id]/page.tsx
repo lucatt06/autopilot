@@ -83,6 +83,88 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         />
       )}
 
+      {/* Counters / progress — bloque principal arriba */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Edificios
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <span className="text-2xl font-bold">{project._count.buildings}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Unidades
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{project._count.units}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              % Avance de obra
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{project.progressPercent}%</div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-emerald-500 transition-all"
+                style={{ width: `${project.progressPercent}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Address / dates detail */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Detalles adicionales</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2">
+          <Field label="Dirección" value={project.address ?? '—'} />
+          <Field
+            label="Inicio de obra"
+            value={
+              project.startDate ? (
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  {formatDate(project.startDate)}
+                </span>
+              ) : (
+                '—'
+              )
+            }
+          />
+          <Field
+            label="Entrega proyectada"
+            value={
+              project.expectedDeliveryDate ? (
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  {formatDate(project.expectedDeliveryDate)}
+                </span>
+              ) : (
+                '—'
+              )
+            }
+          />
+          <Field label="Creado" value={<span>{formatDate(project.createdAt)}</span>} />
+        </CardContent>
+      </Card>
+
       {/* Headline grid: metraje, precios, provincia/ciudad/sector, condición */}
       <Card>
         <CardContent className="grid grid-cols-2 gap-y-4 pt-6 sm:grid-cols-3 lg:grid-cols-4">
@@ -206,88 +288,6 @@ export default async function ProjectDetailPage({ params }: PageProps) {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Counters / progress */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Edificios
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-              <span className="text-2xl font-bold">{project._count.buildings}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Unidades
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{project._count.units}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              % Avance de obra
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{project.progressPercent}%</div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-emerald-500 transition-all"
-                style={{ width: `${project.progressPercent}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Address detail */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Detalles adicionales</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2">
-          <Field label="Dirección" value={project.address ?? '—'} />
-          <Field
-            label="Inicio de obra"
-            value={
-              project.startDate ? (
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  {formatDate(project.startDate)}
-                </span>
-              ) : (
-                '—'
-              )
-            }
-          />
-          <Field
-            label="Entrega proyectada"
-            value={
-              project.expectedDeliveryDate ? (
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  {formatDate(project.expectedDeliveryDate)}
-                </span>
-              ) : (
-                '—'
-              )
-            }
-          />
-          <Field label="Creado" value={<span>{formatDate(project.createdAt)}</span>} />
         </CardContent>
       </Card>
     </div>
