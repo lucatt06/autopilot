@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { Icon } from '@/components/icons'
 import { requireAuth } from '@/lib/auth'
 import { getVisibleModules } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
@@ -33,27 +34,24 @@ export default async function DashboardHomePage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {modules.map((m) => {
-          const Icon = m.icon
-          return (
-            <Link
-              key={m.key}
-              href={m.href}
-              className="group flex flex-col rounded-xl border bg-card p-6 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+        {modules.map((m) => (
+          <Link
+            key={m.key}
+            href={m.href}
+            className="group flex flex-col rounded-xl border bg-card p-6 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+          >
+            <div
+              className={cn(
+                'mb-4 flex h-12 w-12 items-center justify-center rounded-lg text-white shadow-sm',
+                m.color
+              )}
             >
-              <div
-                className={cn(
-                  'mb-4 flex h-12 w-12 items-center justify-center rounded-lg text-white shadow-sm',
-                  m.color
-                )}
-              >
-                <Icon className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-semibold">{m.label}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
-            </Link>
-          )
-        })}
+              <Icon name={m.icon} className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-semibold">{m.label}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+          </Link>
+        ))}
       </div>
     </main>
   )
