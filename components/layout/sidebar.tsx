@@ -13,18 +13,23 @@ interface SidebarProps {
   title?: string
   /** When provided, items prefixed with this href become "active candidates" */
   basePath?: string
+  /** Optional extra content rendered right below the title (e.g. selectors). */
+  headerExtra?: React.ReactNode
 }
 
-export function Sidebar({ sections, title, basePath }: SidebarProps) {
+export function Sidebar({ sections, title, basePath, headerExtra }: SidebarProps) {
   const pathname = usePathname()
 
   return (
     <aside className="w-64 shrink-0 border-r bg-muted/20">
-      {title && (
-        <div className="border-b px-4 py-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {title}
-          </h2>
+      {(title || headerExtra) && (
+        <div className="space-y-3 border-b px-4 py-4">
+          {title && (
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              {title}
+            </h2>
+          )}
+          {headerExtra}
         </div>
       )}
 
