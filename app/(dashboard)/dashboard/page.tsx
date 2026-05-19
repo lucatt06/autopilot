@@ -1,67 +1,60 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
+
 import { requireAuth } from '@/lib/auth'
+import { getVisibleModules } from '@/lib/navigation'
+import { cn } from '@/lib/utils'
 
 export const metadata = {
-  title: 'Dashboard · Autopilot',
+  title: 'Inicio · Autopilot',
+}
+
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Buenos días'
+  if (hour < 19) return 'Buenas tardes'
+  return 'Buenas noches'
 }
 
 export default async function DashboardHomePage() {
   const user = await requireAuth()
+  const modules = getVisibleModules(user.role, user.workspace?.enabledModules ?? [])
 
   return (
-    <div className="space-y-6">
-      <div>
+    <main className="container mx-auto max-w-5xl px-6 py-12">
+      <div className="mb-10">
         <h1 className="text-3xl font-bold tracking-tight">
-          Hola, {user.firstName}
+          {getGreeting()}, {user.firstName}
         </h1>
-        <p className="text-muted-foreground">
-          Bienvenido a Autopilot — Fase 1A · Bloque D (Auth)
+        <p className="mt-1 text-muted-foreground">
+          {user.workspace?.name
+            ? `${user.workspace.name} — selecciona un módulo para comenzar`
+            : 'Super Admin — selecciona un módulo o entra a un workspace'}
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sesión activa</CardTitle>
-          <CardDescription>Datos del usuario y workspace</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div>
-            <span className="font-medium">User ID:</span>{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5">{user.id}</code>
-          </div>
-          <div>
-            <span className="font-medium">Email:</span> {user.email}
-          </div>
-          <div>
-            <span className="font-medium">Rol:</span> {user.role}
-          </div>
-          <div>
-            <span className="font-medium">Workspace ID:</span>{' '}
-            {user.workspaceId ? (
-              <code className="rounded bg-muted px-1.5 py-0.5">{user.workspaceId}</code>
-            ) : (
-              <span className="text-muted-foreground">(Super Admin — sin workspace fijo)</span>
-            )}
-          </div>
-          <div>
-            <span className="font-medium">Workspace:</span>{' '}
-            {user.workspace?.name ?? <span className="text-muted-foreground">—</span>}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Próximos pasos</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Bloque E — Layout principal estilo Odoo (menú visual de módulos)</li>
-            <li>Bloque F — Seed inicial (Trinova + Super Admin Lucas) + validación final</li>
-            <li>Fase 1B — CRM Core (Contactos, Pipelines, Negocios, Tareas, Citas)</li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {modules.map((m) => {
+          const Icon = m.icon
+          return (
+            <Link
+              key={m.key}
+              href={m.href}
+              className="group flex flex-col rounded-xl border bg-card p-6 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+            >
+              <div
+                className={cn(
+                  'mb-4 flex h-12 w-12 items-center justify-center rounded-lg text-white shadow-sm',
+                  m.color
+                )}
+              >
+                <Icon className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-semibold">{m.label}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
+            </Link>
+          )
+        })}
+      </div>
+    </main>
   )
 }
