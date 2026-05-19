@@ -88,6 +88,7 @@ model Workspace {
   deliveryActs      DeliveryAct[]
   warranties        Warranty[]
   punchLists        PunchList[]
+  savedViews        SavedView[]
 }
 
 // =====================================================================
@@ -150,6 +151,34 @@ model User {
   staffProfile       StaffMember?
   messages           Message[]
   UserFollowsContact UserFollowsContact[]
+  savedViews         SavedView[]
+}
+
+// =====================================================================
+// 2.5 SAVED VIEWS (Smart Lists)
+// =====================================================================
+
+/// Saved filter combinations the user pins as tabs (Smart Lists, Doc 1 §7.5).
+/// Currently used for Contacts; entityType lets us extend to Deals, Units, etc.
+model SavedView {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  name        String
+  /// "contact" | "deal" | "unit" | "task" | ...
+  entityType  String
+  /// Serialized filter spec (search, contactType, tagId, ownerId, source,
+  /// createdFrom/To, sort, plus advanced filter conditions when applicable).
+  filters     Json
+  /// When true, other users in the same workspace can see and use this view.
+  isShared    Boolean   @default(false)
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, userId, entityType])
 }
 
 model UserFollowsContact {
