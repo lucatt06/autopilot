@@ -39,6 +39,10 @@ export async function createProject(
       type: data.type,
       location: data.location ?? null,
       address: data.address ?? null,
+      province: data.province ?? null,
+      city: data.city ?? null,
+      sector: data.sector ?? null,
+      amenities: data.amenities,
       status: data.status,
       progressPercent: data.progressPercent,
       startDate: data.startDate ? new Date(data.startDate) : null,
@@ -77,12 +81,13 @@ export async function updateProject(
   const existing = await getProjectById(id, user.workspaceId)
   if (!existing) return { ok: false, error: 'Proyecto no encontrado' }
 
-  const { coverImage, startDate, expectedDeliveryDate, ...rest } = parsed.data
+  const { coverImage, startDate, expectedDeliveryDate, amenities, ...rest } = parsed.data
 
   const updated = await db.project.update({
     where: { id },
     data: {
       ...rest,
+      ...(amenities !== undefined && { amenities }),
       ...(coverImage !== undefined && { images: coverImage ? [coverImage] : [] }),
       ...(startDate !== undefined && {
         startDate: startDate ? new Date(startDate) : null,
@@ -115,7 +120,6 @@ export async function deleteProject(id: string): Promise<ActionResult> {
   const existing = await getProjectById(id, user.workspaceId)
   if (!existing) return { ok: false, error: 'Proyecto no encontrado' }
 
-  // Block delete if the project has units already (safer; admin should reassign first)
   if (existing._count.units > 0) {
     return {
       ok: false,
@@ -138,27 +142,6 @@ export async function deleteProject(id: string): Promise<ActionResult> {
   })
 
   revalidatePath('/desarrollo/proyectos')
-  return { ok: true }
-}
-
-/**
- * Convenience used by the "Nuevo proyecto" form.
- */
-export async function createProjectFromForm(formData: FormData): Promise<ActionResult> {
-  const input = {
-    name: formData.get('name'),
-    type: formData.get('type'),
-    location: formData.get('location'),
-    address: formData.get('address'),
-    status: formData.get('status'),
-    progressPercent: formData.get('progressPercent'),
-    startDate: formData.get('startDate'),
-    expectedDeliveryDate: formData.get('expectedDeliveryDate'),
-    coverImage: formData.get('coverImage'),
-  }
-  const result = await createProject(input as never)
-  if (!result.ok) return result
-  if (result.data?.id) redirect(`/desarrollo/proyectos/${result.data.id}`)
   return { ok: true }
 }
 

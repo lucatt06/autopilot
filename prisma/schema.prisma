@@ -947,6 +947,12 @@ model Project {
   type                 ProjectType
   location             String?
   address              String?
+  // Geographic detail (Doc 1 §8.2 — supports province / city / sector breakdown)
+  province             String?
+  city                 String?
+  sector               String?
+  // Amenities / "Características" — free-form catalog per workspace
+  amenities            String[]      @default([])
   // Media
   images               String[] // URLs
   documents            Json? // [{name, url, type}, ...]

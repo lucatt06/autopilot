@@ -33,6 +33,10 @@ export const createProjectSchema = z.object({
   type: z.enum(PROJECT_TYPES).default('RESIDENCIAL'),
   location: optionalString,
   address: optionalString,
+  province: optionalString,
+  city: optionalString,
+  sector: optionalString,
+  amenities: z.array(z.string().trim().min(1)).default([]),
   status: z.enum(PROJECT_STATUSES).default('EN_PLANOS'),
   startDate: optionalDate,
   expectedDeliveryDate: optionalDate,
@@ -40,6 +44,41 @@ export const createProjectSchema = z.object({
   /** URL of the main image / render */
   coverImage: optionalUrl,
 })
+
+/**
+ * Catálogo común de amenidades para los proyectos. El usuario puede agregar
+ * texto libre adicional (multi-select free-form).
+ */
+export const AMENITIES_CATALOG = [
+  'Administración de alquileres',
+  'Aire acondicionado central',
+  'Ascensor',
+  'Áreas verdes',
+  'Balcón',
+  'Cancha de Padel',
+  'Cancha de Tenis',
+  'Casa Club',
+  'Centro comercial',
+  'Cisterna',
+  'Co-working',
+  'Domótica',
+  'Estacionamiento',
+  'Generador eléctrico',
+  'Gimnasio',
+  'Helipuerto',
+  'Jacuzzi',
+  'Kids Club',
+  'Lobby',
+  'Marina',
+  'Pet friendly',
+  'Piscina',
+  'Playa privada',
+  'Restaurante',
+  'Seguridad 24/7',
+  'Sky lounge',
+  'Spa',
+  'Vista al Mar',
+] as const
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>
 

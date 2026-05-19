@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Building2, Calendar, ChevronLeft, MapPin } from 'lucide-react'
+import { Building2, Calendar, Check, ChevronLeft, MapPin, Ruler } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { StubPage } from '@/components/stub-page'
 import { requireAuth } from '@/lib/auth'
 import { getProjectById } from '@/lib/projects/queries'
+import { getProjectStats } from '@/lib/projects/stats'
 import { STATUS_LABELS, STATUS_BADGE, TYPE_LABELS } from '@/lib/projects/schemas'
 import { formatDate } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,16 @@ interface PageProps {
   params: { id: string }
 }
 
+const usd = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(n)
+
+const sqm = (n: number) =>
+  new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(n)
+
 export default async function ProjectDetailPage({ params }: PageProps) {
   const user = await requireAuth()
   if (!user.workspaceId) return notFound()
@@ -24,6 +34,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const project = await getProjectById(params.id, user.workspaceId)
   if (!project) return notFound()
 
+  const stats = await getProjectStats(project.id, user.workspaceId)
   const canManage = user.role === 'SUPER_ADMIN' || user.role === 'ADMIN'
 
   return (
@@ -72,6 +83,133 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         />
       )}
 
+      {/* Headline grid: metraje, precios, provincia/ciudad/sector, condición */}
+      <Card>
+        <CardContent className="grid grid-cols-2 gap-y-4 pt-6 sm:grid-cols-3 lg:grid-cols-4">
+          <Field
+            label="Metraje"
+            value={
+              stats.totalUnits === 0 ? (
+                '—'
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <Ruler className="h-3.5 w-3.5 text-emerald-600" />
+                  {sqm(stats.squareMetersMin)} – {sqm(stats.squareMetersMax)} m²
+                </span>
+              )
+            }
+          />
+          <Field
+            label="Precio desde"
+            value={stats.totalUnits === 0 ? '—' : usd(stats.priceMin)}
+          />
+          <Field
+            label="Precio hasta"
+            value={stats.totalUnits === 0 ? '—' : usd(stats.priceMax)}
+          />
+          <Field label="Provincia" value={project.province ?? '—'} />
+
+          <Field label="Ciudad" value={project.city ?? '—'} />
+          <Field label="Sector" value={project.sector ?? '—'} />
+          <Field
+            label="Condición"
+            value={
+              <span
+                className={cn(
+                  'inline-flex rounded-md border px-1.5 py-0.5 text-xs font-medium',
+                  STATUS_BADGE[project.status]
+                )}
+              >
+                {STATUS_LABELS[project.status]}
+              </span>
+            }
+          />
+          <Field
+            label="Última actualización"
+            value={
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                {formatDate(project.updatedAt)}
+              </span>
+            }
+          />
+        </CardContent>
+      </Card>
+
+      {/* Metro Cuadrado */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Metro Cuadrado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats.totalUnits === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aún no hay unidades creadas para calcular el metraje.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
+              <SqmField
+                label="m² Total"
+                value={stats.squareMetersTotal}
+                dotClass="bg-muted-foreground/40"
+              />
+              <SqmField
+                label="m² Disponible"
+                value={stats.squareMetersAvailable}
+                dotClass="bg-emerald-400"
+              />
+              <SqmField
+                label="m² Reservado"
+                value={stats.squareMetersReserved}
+                dotClass="bg-blue-400"
+              />
+              <SqmField
+                label="m² Bloqueado"
+                value={stats.squareMetersBlocked}
+                dotClass="bg-amber-400"
+              />
+              <SqmField
+                label="m² Vendido"
+                value={stats.squareMetersSold}
+                dotClass="bg-rose-400"
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Características */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Características</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {project.amenities.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Sin amenidades registradas.{' '}
+              {canManage && (
+                <Link
+                  href={`/desarrollo/proyectos/${project.id}/editar`}
+                  className="text-primary hover:underline"
+                >
+                  Agregar características
+                </Link>
+              )}
+            </p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              {project.amenities.map((a) => (
+                <li key={a} className="inline-flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>{a}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Counters / progress */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -116,14 +254,15 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         </Card>
       </div>
 
+      {/* Address detail */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Detalles</CardTitle>
+          <CardTitle className="text-base">Detalles adicionales</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2">
           <Field label="Dirección" value={project.address ?? '—'} />
           <Field
-            label="Inicio"
+            label="Inicio de obra"
             value={
               project.startDate ? (
                 <span className="inline-flex items-center gap-1">
@@ -148,18 +287,9 @@ export default async function ProjectDetailPage({ params }: PageProps) {
               )
             }
           />
-          <Field
-            label="Creado"
-            value={<span>{formatDate(project.createdAt)}</span>}
-          />
+          <Field label="Creado" value={<span>{formatDate(project.createdAt)}</span>} />
         </CardContent>
       </Card>
-
-      <StubPage
-        title="Edificios y unidades del proyecto"
-        phase="1G (siguiente paso)"
-        description="Listado de edificios + accesos a Unidades, Disponibilidad y Plan de Pago de este proyecto. Vienen en G.1.4–G.1.7."
-      />
     </div>
   )
 }
@@ -169,6 +299,26 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-medium">{value}</div>
+    </div>
+  )
+}
+
+function SqmField({
+  label,
+  value,
+  dotClass,
+}: {
+  label: string
+  value: number
+  dotClass: string
+}) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 inline-flex items-center gap-2 text-lg font-semibold">
+        <span className={cn('h-2.5 w-2.5 rounded-full', dotClass)} />
+        {sqm(value)}
+      </div>
     </div>
   )
 }

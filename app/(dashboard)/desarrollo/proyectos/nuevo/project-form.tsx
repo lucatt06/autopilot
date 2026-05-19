@@ -23,6 +23,8 @@ import {
   TYPE_LABELS,
 } from '@/lib/projects/schemas'
 
+import { AmenitiesPicker } from '../_components/amenities-picker'
+
 export function ProjectForm() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -36,6 +38,10 @@ export function ProjectForm() {
       name: String(formData.get('name') ?? '').trim(),
       location: String(formData.get('location') ?? '').trim() || undefined,
       address: String(formData.get('address') ?? '').trim() || undefined,
+      province: String(formData.get('province') ?? '').trim() || undefined,
+      city: String(formData.get('city') ?? '').trim() || undefined,
+      sector: String(formData.get('sector') ?? '').trim() || undefined,
+      amenities: formData.getAll('amenities').map(String),
       progressPercent: Number(formData.get('progressPercent') ?? 0),
       startDate: String(formData.get('startDate') ?? '') || undefined,
       expectedDeliveryDate: String(formData.get('expectedDeliveryDate') ?? '') || undefined,
@@ -117,21 +123,48 @@ export function ProjectForm() {
             </Select>
           </div>
         </div>
+      </fieldset>
 
-        <div className="space-y-2">
-          <Label htmlFor="location">Ubicación</Label>
-          <Input
-            id="location"
-            name="location"
-            disabled={isPending}
-            placeholder="Ej. Punta Cana, La Altagracia"
-          />
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-muted-foreground">Ubicación</legend>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="province">Provincia</Label>
+            <Input
+              id="province"
+              name="province"
+              disabled={isPending}
+              placeholder="Ej. La Altagracia"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="city">Ciudad</Label>
+            <Input id="city" name="city" disabled={isPending} placeholder="Ej. Punta Cana" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sector">Sector</Label>
+            <Input id="sector" name="sector" disabled={isPending} placeholder="Ej. Bávaro" />
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="address">Dirección</Label>
+          <Label htmlFor="location">Localidad / referencia</Label>
+          <Input id="location" name="location" disabled={isPending} placeholder="Texto libre" />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address">Dirección exacta</Label>
           <Input id="address" name="address" disabled={isPending} />
         </div>
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-muted-foreground">Características</legend>
+        <p className="text-xs text-muted-foreground">
+          Marca las amenidades del proyecto. Puedes agregar personalizadas si tu lista no está aquí.
+        </p>
+        <AmenitiesPicker />
       </fieldset>
 
       <fieldset className="space-y-4">
