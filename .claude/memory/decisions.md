@@ -62,6 +62,51 @@ Lista cerrada:
 
 ---
 
+## 2026-05-19 — Workflow de migraciones SQL (no usar `prisma migrate dev`)
+
+**Decisión:** No usar `prisma migrate dev` ni `prisma db push`. Aplicar SQL directo con un script Node propio.
+
+**Rationale:**
+- `prisma migrate dev` cuelga indefinidamente contra el pooler de Supabase. Síntoma: ningún output, ningún error, proceso vivo pero sin progreso. Causa probable: intenta crear un "shadow database" para detectar drift, lo cual Supabase hosted no permite (no hay permisos para `CREATE DATABASE`).
+- `prisma db push` también cuelga (mismo issue subyacente).
+- En cambio, **Prisma Client (`$executeRawUnsafe`) sí funciona perfectamente** contra el mismo pooler (probado: conexión en 879ms, schema completo aplicado en 65s con 229 statements, 0 fallos).
+
+**Workflow definido para futuras migraciones:**
+
+1. Editar `prisma/schema.prisma`
+2. Generar el SQL del delta:
+   ```bash
+   npx prisma migrate diff \
+     --from-url $DATABASE_URL \
+     --to-schema-datamodel prisma/schema.prisma \
+     --script > prisma/migrations/000N_descripcion.sql
+   ```
+3. **Revisar manualmente el SQL** generado (especialmente DROP statements destructivos)
+4. Aplicar con el script propio:
+   ```bash
+   node --env-file=.env prisma/scripts/apply-sql.mjs prisma/migrations/000N_descripcion.sql
+   ```
+5. Regenerar el client:
+   ```bash
+   npx prisma generate
+   ```
+
+**Trade-offs:**
+- ❌ Perdemos las features del `prisma migrate` CLI: tracking automático de migrations aplicadas en `_prisma_migrations`, rollback automático, dev/prod parity, etc.
+- ✅ Ganamos: workflow que SÍ funciona contra Supabase, control explícito sobre qué SQL se ejecuta, posibilidad de auditar cada migración SQL manualmente.
+
+**Riesgo a monitorear:** si en algún momento dos developers crean migraciones en paralelo sin coordinar, pueden divergir. Mitigación: convención de numeración secuencial + revisión obligatoria en PR.
+
+**Schema aplicado exitosamente:**
+- 66 tablas
+- 53 enums
+- 97 foreign keys
+- 79 índices
+
+Archivo baseline: `prisma/migrations/0001_init.sql` (1796 líneas).
+
+---
+
 ## 2026-05-19 — Comunicación de modelo recomendado
 
 **Decisión:** Per `user_preferences.md`, antes de iniciar cada fase, recomendar explícitamente qué modelo usar:

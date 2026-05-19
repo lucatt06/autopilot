@@ -1,0 +1,2141 @@
+// =====================================================================
+// AUTOPILOT — SCHEMA DE DATOS (Prisma)
+// Documento 2 de 3
+// =====================================================================
+//
+// Este schema define todas las tablas de la base de datos PostgreSQL
+// (Supabase) para Autopilot. Cada tabla con datos sensibles incluye
+// workspace_id para Row-Level Security (RLS) multi-tenant.
+//
+// CONVENCIONES:
+// - IDs: cuid() o uuid()
+// - workspace_id: presente en cada tabla con datos de empresa
+// - createdAt y updatedAt: automáticos
+// - Soft-delete: deletedAt opcional donde aplique
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================================
+// 1. WORKSPACES (Multi-tenancy)
+// =====================================================================
+
+model Workspace {
+  id             String    @id @default(cuid())
+  name           String
+  slug           String    @unique
+  logo           String?
+  timezone       String    @default("America/Santo_Domingo")
+  currency       String    @default("USD")
+  language       String    @default("es")
+  // Branding
+  primaryColor   String?   @default("#2563EB")
+  customDomain   String?
+  // Status
+  isActive       Boolean   @default(true)
+  enabledModules String[]  @default(["crm", "real_estate"]) // crm, real_estate, productivity, website, etc.
+  // Metadata
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Relations
+  users             User[]
+  contacts          Contact[]
+  pipelines         Pipeline[]
+  deals             Deal[]
+  conversations     Conversation[]
+  tasks             Task[]
+  appointments      Appointment[]
+  calendars         Calendar[]
+  tags              Tag[]
+  campaigns         Campaign[]
+  aiAgents          AiAgent[]
+  knowledgeBases    KnowledgeBase[]
+  automations       Automation[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  projects          Project[]
+  buildings         Building[]
+  units             Unit[]
+  blocks            Block[]
+  reservations      Reservation[]
+  sales             Sale[]
+  paymentPlans      PaymentPlan[]
+  payments          Payment[]
+  contracts         Contract[]
+  contractTemplates ContractTemplate[]
+  commissions       Commission[]
+  customers         Customer[]
+  agencies          Agency[]
+  staff             StaffMember[]
+  workOrders        WorkOrder[]
+  budgetItems       BudgetItem[]
+  scheduleItems     ScheduleItem[]
+  progressEntries   ProgressEntry[]
+  inspections       Inspection[]
+  subcontractors    Subcontractor[]
+  suppliers         Supplier[]
+  supplierPayments  SupplierPayment[]
+  areaSupervisions  AreaSupervision[]
+  deliveryActs      DeliveryAct[]
+  warranties        Warranty[]
+  punchLists        PunchList[]
+}
+
+// =====================================================================
+// 2. USERS, ROLES & PERMISSIONS
+// =====================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  ASESOR
+  CLIENTE
+}
+
+model User {
+  id                        String     @id @default(cuid())
+  workspaceId               String? // null = Super Admin (cross-workspace)
+  workspace                 Workspace? @relation(fields: [workspaceId], references: [id])
+  // Auth
+  email                     String     @unique
+  passwordHash              String?
+  googleId                  String?    @unique
+  // Profile
+  firstName                 String
+  lastName                  String
+  avatar                    String?
+  phone                     String?
+  whatsappNumber            String?
+  // Role
+  role                      UserRole
+  isActive                  Boolean    @default(true)
+  // Personal config
+  language                  String     @default("es")
+  timezone                  String     @default("America/Santo_Domingo")
+  // Onboarding
+  onboardingCompleted       Boolean    @default(false)
+  // Permissions (custom overrides over role defaults)
+  canImpersonate            Boolean    @default(false)
+  // Twilio
+  twilioNumber              String?
+  // Integrations
+  googleCalendarConnected   Boolean    @default(false)
+  googleCalendarToken       String? // encrypted
+  facebookConnected         Boolean    @default(false)
+  instagramConnected        Boolean    @default(false)
+  whatsappPersonalConnected Boolean    @default(false)
+  // Metadata
+  lastLoginAt               DateTime?
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
+  deletedAt                 DateTime?
+
+  // Relations
+  ownedContacts      Contact[]            @relation("ContactOwner")
+  createdContacts    Contact[]            @relation("ContactCreator")
+  assignedTasks      Task[]               @relation("TaskAssignee")
+  createdTasks       Task[]               @relation("TaskCreator")
+  appointments       Appointment[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  staffProfile       StaffMember?
+  messages           Message[]
+  UserFollowsContact UserFollowsContact[]
+}
+
+model UserFollowsContact {
+  userId     String
+  contactId  String
+  user       User     @relation(fields: [userId], references: [id])
+  contact    Contact  @relation(fields: [contactId], references: [id])
+  followedAt DateTime @default(now())
+
+  @@id([userId, contactId])
+}
+
+// =====================================================================
+// 3. CONTACTS
+// =====================================================================
+
+enum ContactType {
+  LEAD
+  PROSPECTO
+  CLIENTE
+  AGENTE_INMOBILIARIO
+  REFERIDO
+  OTRO
+}
+
+enum LeadTemperature {
+  MUY_CALIENTE
+  CALIENTE
+  TIBIO
+  FRIO
+  SIN_CLASIFICAR
+}
+
+enum BuyPurpose {
+  VIVIR
+  INVERTIR
+  AMBOS
+  NO_DEFINIDO
+}
+
+enum PaymentPreference {
+  CONTADO
+  FINANCIAMIENTO_BANCARIO
+  PLAN_DESARROLLADOR
+  NO_DEFINIDO
+}
+
+enum Residency {
+  RESIDENTE_LOCAL
+  DOMINICANO_EXTERIOR
+  EXTRANJERO
+  NO_ESPECIFICADO
+}
+
+enum HardOwner {
+  COMPANIA
+  ASESOR
+}
+
+model Contact {
+  id                   String             @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace          @relation(fields: [workspaceId], references: [id])
+  // Personal info
+  firstName            String
+  lastName             String
+  email                String?
+  emailVerified        Boolean            @default(false)
+  mobilePhone          String? // Celular
+  phone                String? // Teléfono fijo/secundario
+  country              String?
+  city                 String?
+  language             String             @default("es")
+  birthDate            DateTime?
+  gender               String?
+  photo                String?
+  // Professional
+  company              String?
+  position             String?
+  website              String?
+  // Lead classification
+  contactType          ContactType
+  source               String?
+  hardOwner            HardOwner?
+  iaScore              Int                @default(0) // 0-100
+  temperature          LeadTemperature    @default(SIN_CLASIFICAR)
+  requiredAction       String?
+  // Real estate interest
+  interestedProjectIds String[] // refs to Project[]
+  buyPurpose           BuyPurpose?
+  unitTypes            String[] // multi: Estudio, 1 Hab, 2 Hab, etc.
+  budgetMin            Float?
+  budgetMax            Float?
+  estimatedBuyTime     String? // Inmediato, 1-3 meses, etc.
+  paymentPreference    PaymentPreference?
+  residency            Residency?
+  // Advanced classification
+  currentStageId       String?
+  currentStage         PipelineStage?     @relation(fields: [currentStageId], references: [id])
+  nextStepDate         DateTime?
+  nextStepUserId       String?
+  movedTo              String?
+  campaignOrigin       String?
+  // AI agent
+  activeAiAgentId      String?
+  activeAiAgent        AiAgent?           @relation(fields: [activeAiAgentId], references: [id])
+  killswitchIA         Boolean            @default(false)
+  lastAiContactAt      DateTime?
+  lastAiCallRecording  String?
+  lastAiCallId         String?
+  // DND
+  dndAll               Boolean            @default(false)
+  dndCalls             Boolean            @default(false)
+  dndSms               Boolean            @default(false)
+  dndEmail             Boolean            @default(false)
+  dndIncoming          Boolean            @default(false)
+  // Ownership
+  ownerId              String?
+  owner                User?              @relation("ContactOwner", fields: [ownerId], references: [id])
+  createdById          String?
+  createdBy            User?              @relation("ContactCreator", fields: [createdById], references: [id])
+  // Metadata
+  lastActivityAt       DateTime?
+  lastChannelUsed      String?
+  firstAttribution     String?
+  lastAttribution      String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  deletedAt            DateTime?
+
+  // Relations
+  deals         Deal[]
+  conversations Conversation[]
+  tasks         Task[]
+  appointments  Appointment[]
+  tags          ContactTag[]
+  followers     UserFollowsContact[]
+  customer      Customer?            @relation(fields: [customerId], references: [id])
+  contracts     Contract[]
+  notes         ContactNote[]
+  documents     ContactDocument[]
+  events        ContactEvent[]
+  customFields  ContactCustomField[]
+  customerId    String?
+}
+
+model ContactNote {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id])
+  authorId  String?
+  type      String   @default("manual") // manual, ai_call_transcript, system
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+model ContactDocument {
+  id         String   @id @default(cuid())
+  contactId  String
+  contact    Contact  @relation(fields: [contactId], references: [id])
+  uploadedBy String?
+  category   String   @default("all") // all, internal, sent, received
+  name       String
+  url        String
+  size       Int?
+  mimeType   String?
+  createdAt  DateTime @default(now())
+}
+
+model ContactEvent {
+  id          String   @id @default(cuid())
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id])
+  type        String // stage_change, opportunity_created, ai_call, etc.
+  description String
+  metadata    Json?
+  performedBy String?
+  createdAt   DateTime @default(now())
+}
+
+model ContactCustomField {
+  id        String  @id @default(cuid())
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+  fieldKey  String
+  value     String  @db.Text
+}
+
+// =====================================================================
+// 4. TAGS
+// =====================================================================
+
+model Tag {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  name        String
+  color       String    @default("#94A3B8")
+  createdAt   DateTime  @default(now())
+
+  contacts ContactTag[]
+
+  @@unique([workspaceId, name])
+}
+
+model ContactTag {
+  contactId String
+  tagId     String
+  contact   Contact  @relation(fields: [contactId], references: [id])
+  tag       Tag      @relation(fields: [tagId], references: [id])
+  taggedAt  DateTime @default(now())
+
+  @@id([contactId, tagId])
+}
+
+// =====================================================================
+// 5. PIPELINES & DEALS
+// =====================================================================
+
+model Pipeline {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  name        String
+  isDefault   Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  stages PipelineStage[]
+  deals  Deal[]
+}
+
+model PipelineStage {
+  id         String   @id @default(cuid())
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id])
+  name       String
+  position   Int
+  color      String?
+  isWon      Boolean  @default(false) // si esta etapa marca el negocio como ganado
+  isLost     Boolean  @default(false) // si esta etapa marca el negocio como perdido
+
+  deals    Deal[]
+  contacts Contact[]
+}
+
+model Deal {
+  id           String        @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
+  contactId    String
+  contact      Contact       @relation(fields: [contactId], references: [id])
+  pipelineId   String
+  pipeline     Pipeline      @relation(fields: [pipelineId], references: [id])
+  stageId      String
+  stage        PipelineStage @relation(fields: [stageId], references: [id])
+  // Deal data
+  name         String
+  value        Float         @default(0)
+  source       String?
+  assignedToId String?
+  isPrimary    Boolean       @default(true)
+  // Status
+  status       String        @default("active") // active, won, lost
+  wonAt        DateTime?
+  lostAt       DateTime?
+  lostReason   String?
+  // Metadata
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+}
+
+// =====================================================================
+// 6. CONVERSATIONS & MESSAGES
+// =====================================================================
+
+enum ConversationChannel {
+  WHATSAPP_META
+  WHATSAPP_EVOLUTION
+  SMS
+  EMAIL
+  INSTAGRAM_DM
+  FACEBOOK_MESSENGER
+  INTERNAL
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  contactId     String?
+  contact       Contact?  @relation(fields: [contactId], references: [id])
+  // Status
+  isUnread      Boolean   @default(false)
+  isStarred     Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  // Channels active in this conversation
+  channels      String[]
+  // Assignment
+  assignedToId  String?
+  // Metadata
+  lastMessageAt DateTime?
+  lastMessageBy String? // user or contact
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages Message[]
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  AUDIO
+  IMAGE
+  VIDEO
+  DOCUMENT
+  CALL_RECORDING
+  SYSTEM_EVENT
+}
+
+model Message {
+  id               String              @id @default(cuid())
+  conversationId   String
+  conversation     Conversation        @relation(fields: [conversationId], references: [id])
+  channel          ConversationChannel
+  direction        MessageDirection
+  type             MessageType
+  // Content
+  body             String?             @db.Text
+  mediaUrl         String?
+  mediaMimeType    String?
+  // Call-specific
+  callDuration     Int? // in seconds
+  callRecordingUrl String?
+  callTranscript   String?             @db.Text
+  callSentiment    String?
+  // Author
+  sentByUserId     String?
+  sentByUser       User?               @relation(fields: [sentByUserId], references: [id])
+  sentByAiAgentId  String?
+  fromName         String? // for inbound
+  // Status
+  status           String              @default("sent") // sent, delivered, read, failed
+  externalId       String? // ID in Twilio/Meta/Retell
+  // AI metadata
+  aiCallId         String?
+  aiEventData      Json? // structured event data from AI interactions
+  // Scheduling
+  scheduledFor     DateTime?
+  // Metadata
+  createdAt        DateTime            @default(now())
+  readAt           DateTime?
+}
+
+// =====================================================================
+// 7. CALENDARS & APPOINTMENTS
+// =====================================================================
+
+enum CalendarType {
+  VIRTUAL
+  PRESENCIAL
+}
+
+model Calendar {
+  id               String       @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace    @relation(fields: [workspaceId], references: [id])
+  name             String
+  type             CalendarType
+  isSystemDefault  Boolean      @default(false)
+  // Settings
+  generateMeetLink Boolean      @default(true)
+  requireLocation  Boolean      @default(false)
+  defaultLocation  String?
+  // Distribution
+  distribution     String       @default("round_robin") // round_robin, availability
+  assignedUserIds  String[]
+  // Metadata
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  appointments Appointment[]
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
+  calendarId      String
+  calendar        Calendar          @relation(fields: [calendarId], references: [id])
+  contactId       String?
+  contact         Contact?          @relation(fields: [contactId], references: [id])
+  userId          String // asesor asignado
+  user            User              @relation(fields: [userId], references: [id])
+  // Data
+  title           String
+  description     String?
+  notes           String?
+  // Time
+  startTime       DateTime
+  endTime         DateTime
+  timezone        String
+  // Type
+  meetingType     CalendarType
+  location        String?
+  meetLink        String?
+  // Invitees
+  inviteeEmails   String[]
+  // Status
+  status          AppointmentStatus @default(CONFIRMED)
+  // Reminders
+  reminderSent24h Boolean           @default(false)
+  reminderSent30m Boolean           @default(false)
+  // External sync
+  googleEventId   String?
+  // Metadata
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+// =====================================================================
+// 8. TASKS
+// =====================================================================
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Task {
+  id               String     @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace  @relation(fields: [workspaceId], references: [id])
+  title            String
+  description      String?    @db.Text // rich text
+  // Timing
+  dueDate          DateTime?
+  recurring        Boolean    @default(false)
+  recurringPattern String? // cron-like
+  // Assignment
+  assignedToId     String?
+  assignedTo       User?      @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdById      String
+  createdBy        User       @relation("TaskCreator", fields: [createdById], references: [id])
+  // Linked contacts (hasta 10)
+  contactId        String?
+  contact          Contact?   @relation(fields: [contactId], references: [id])
+  // Status
+  status           TaskStatus @default(PENDING)
+  completedAt      DateTime?
+  // Metadata
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+// =====================================================================
+// 9. CAMPAIGNS
+// =====================================================================
+
+model Campaign {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace @relation(fields: [workspaceId], references: [id])
+  name             String
+  description      String?
+  // Status
+  isActive         Boolean   @default(true)
+  // Participants (asesores en orden de round robin)
+  participantIds   String[]
+  participantOrder Json? // [{userId, order}, ...]
+  // Source connections
+  facebookAdId     String?
+  googleAdId       String?
+  webhookUrl       String?
+  // Hard Owner config
+  hardOwner        HardOwner @default(COMPANIA)
+  // Metadata
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  assignments CampaignAssignment[]
+}
+
+model CampaignAssignment {
+  id           String   @id @default(cuid())
+  campaignId   String
+  campaign     Campaign @relation(fields: [campaignId], references: [id])
+  contactId    String
+  assignedToId String
+  turnOrder    Int
+  status       String   @default("active") // active, won, lost
+  createdAt    DateTime @default(now())
+}
+
+// =====================================================================
+// 10. AI AGENTS
+// =====================================================================
+
+enum AiAgentType {
+  VOICE
+  CHAT
+}
+
+enum AiAgentSubtype {
+  CONVERSATION_FLOW
+  SINGLE_PROMPT
+  MULTI_PROMPT
+  CUSTOM_LLM
+}
+
+model AiAgent {
+  id                           String         @id @default(cuid())
+  workspaceId                  String
+  workspace                    Workspace      @relation(fields: [workspaceId], references: [id])
+  // Identity
+  name                         String
+  type                         AiAgentType
+  subtype                      AiAgentSubtype
+  // Model
+  model                        String         @default("claude-sonnet-4")
+  temperature                  Float          @default(0.7)
+  // Prompts
+  systemPrompt                 String         @db.Text
+  welcomeMessage               String?
+  // Behavior
+  startsSpeakingAfterSilenceMs Int            @default(1500)
+  // Voice-specific
+  voiceId                      String? // ElevenLabs voice ID
+  voiceLanguage                String?
+  // Chat-specific
+  waitTimeMs                   Int            @default(3000) // buffer mensajes
+  maxResponses                 Int            @default(50)
+  sleepMode                    Boolean        @default(false)
+  purposefulMisspellings       Boolean        @default(false)
+  misspellingProbability       Float          @default(0.0)
+  responseChannels             String[]
+  pauseOnHumanReply            Boolean        @default(true)
+  autoFollowUpAutomationId     String?
+  // Knowledge & functions
+  knowledgeBaseId              String?
+  knowledgeBase                KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id])
+  functions                    Json? // array of function definitions
+  // Retell sync
+  retellAgentId                String?        @unique
+  retellSyncedAt               DateTime?
+  // Webhook
+  webhookUrl                   String?
+  // Status
+  isActive                     Boolean        @default(true)
+  // Metadata
+  createdAt                    DateTime       @default(now())
+  updatedAt                    DateTime       @updatedAt
+
+  activeContacts Contact[]
+  routings       AgentRouting[]
+}
+
+model KnowledgeBase {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id])
+  name              String
+  description       String?
+  // Vector storage
+  pineconeIndex     String?
+  pineconeNamespace String?
+  // Metadata
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  entries KnowledgeEntry[]
+  agents  AiAgent[]
+}
+
+model KnowledgeEntry {
+  id               String        @id @default(cuid())
+  knowledgeBaseId  String
+  knowledgeBase    KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id])
+  // Type
+  type             String // text, faq, file, url
+  title            String
+  content          String        @db.Text
+  fileUrl          String?
+  sourceUrl        String?
+  // Metadata filtering — clave para no mezclar info entre proyectos
+  projectId        String?
+  metadata         Json?
+  // Embedding info
+  pineconeVectorId String?
+  // Metadata
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model AgentRouting {
+  id          String   @id @default(cuid())
+  workspaceId String
+  agentId     String
+  agent       AiAgent  @relation(fields: [agentId], references: [id])
+  priority    Int
+  conditions  Json // [{field, operator, value}, ...]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model AiCall {
+  id                   String           @id @default(cuid())
+  workspaceId          String
+  contactId            String?
+  agentId              String?
+  retellCallId         String           @unique
+  // Direction
+  direction            MessageDirection
+  fromNumber           String
+  toNumber             String
+  // Duration
+  startedAt            DateTime
+  endedAt              DateTime?
+  durationSeconds      Int?
+  // Result (structured event data)
+  result               String? // voicemail, no_answer, answered, completed
+  hangupReason         String?
+  appointmentScheduled Boolean          @default(false)
+  sentiment            String? // positive, neutral, negative
+  detectedInterest     String? // high, medium, low
+  mentionedProject     String?
+  suggestedNextAction  String?
+  // Content
+  transcript           String?          @db.Text
+  summary              String?          @db.Text
+  recordingUrl         String?
+  // Cost
+  cost                 Float?
+  // Metadata
+  createdAt            DateTime         @default(now())
+}
+
+// =====================================================================
+// 11. AUTOMATIONS
+// =====================================================================
+
+model Automation {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  name          String
+  description   String?
+  isActive      Boolean   @default(true)
+  // Trigger
+  triggerType   String // contact_created, stage_changed, ai_no_response, etc.
+  triggerConfig Json
+  // Canvas
+  canvasData    Json // nodes, edges, sticky notes
+  // Metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  executions AutomationExecution[]
+}
+
+model AutomationExecution {
+  id            String     @id @default(cuid())
+  automationId  String
+  automation    Automation @relation(fields: [automationId], references: [id])
+  contactId     String?
+  triggerData   Json
+  status        String     @default("running") // running, completed, failed, paused
+  currentNodeId String?
+  executionLog  Json // step-by-step log
+  startedAt     DateTime   @default(now())
+  completedAt   DateTime?
+  error         String?
+}
+
+// =====================================================================
+// 12. NOTIFICATIONS
+// =====================================================================
+
+model Notification {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  // Content
+  type        String // new_message, task_overdue, etc.
+  title       String
+  body        String?
+  link        String?
+  // Channel delivered
+  inApp       Boolean   @default(true)
+  push        Boolean   @default(false)
+  email       Boolean   @default(false)
+  whatsapp    Boolean   @default(false)
+  // Status
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  // Related entity
+  entityType  String?
+  entityId    String?
+  // Metadata
+  createdAt   DateTime  @default(now())
+}
+
+// =====================================================================
+// 13. AUDIT LOG
+// =====================================================================
+
+model AuditLog {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id])
+  userId             String?
+  user               User?     @relation(fields: [userId], references: [id])
+  // What happened
+  action             String // created, updated, deleted, impersonation_started, etc.
+  entityType         String
+  entityId           String?
+  changes            Json? // before/after
+  // Context
+  ipAddress          String?
+  userAgent          String?
+  impersonatedUserId String?
+  // Metadata
+  createdAt          DateTime  @default(now())
+}
+
+// =====================================================================
+// 14. REAL ESTATE — PROJECTS
+// =====================================================================
+
+enum ProjectStatus {
+  EN_PLANOS
+  EN_CONSTRUCCION
+  ENTREGADO
+  SUSPENDIDO
+}
+
+enum ProjectType {
+  RESIDENCIAL
+  COMERCIAL
+  MIXTO
+}
+
+model Project {
+  id                   String        @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace     @relation(fields: [workspaceId], references: [id])
+  name                 String
+  type                 ProjectType
+  location             String?
+  address              String?
+  // Media
+  images               String[] // URLs
+  documents            Json? // [{name, url, type}, ...]
+  // Status
+  status               ProjectStatus @default(EN_PLANOS)
+  startDate            DateTime?
+  expectedDeliveryDate DateTime?
+  progressPercent      Int           @default(0)
+  // Live camera
+  liveCameraUrl        String?
+  liveCameraEnabled    Boolean       @default(false)
+  // Metadata
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  deletedAt            DateTime?
+
+  buildings            Building[]
+  units                Unit[]
+  paymentPlanTemplates PaymentPlanTemplate[]
+}
+
+model Building {
+  id                   String        @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace     @relation(fields: [workspaceId], references: [id])
+  projectId            String
+  project              Project       @relation(fields: [projectId], references: [id])
+  name                 String
+  numberOfFloors       Int
+  unitsPerFloor        Int           @default(4)
+  description          String?
+  image                String?
+  status               ProjectStatus
+  expectedDeliveryDate DateTime?
+  // Metadata
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  units Unit[]
+}
+
+enum UnitStatus {
+  DISPONIBLE
+  BLOQUEADA
+  RESERVADA
+  VENDIDA
+  ENTREGADA
+}
+
+enum UnitView {
+  MAR
+  PISCINA
+  JARDIN
+  CIUDAD
+  INTERIOR
+}
+
+model Unit {
+  id                  String     @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace  @relation(fields: [workspaceId], references: [id])
+  projectId           String
+  project             Project    @relation(fields: [projectId], references: [id])
+  buildingId          String
+  building            Building   @relation(fields: [buildingId], references: [id])
+  // Identifier
+  unitNumber          String // 1A, 201, PH-01
+  floor               Int
+  // Type
+  type                String // Estudio, 1 Hab, 2 Hab, etc.
+  bedrooms            Int        @default(0)
+  bathrooms           Float      @default(0)
+  squareMeters        Float
+  terraceSquareMeters Float?
+  // Pricing
+  basePrice           Float
+  currentPrice        Float
+  // Characteristics
+  view                UnitView?
+  orientation         String? // N, S, E, W, NE, NO, SE, SO
+  specialFeatures     String[]
+  // Media
+  floorPlan           String?
+  photos              String[]
+  // Status
+  status              UnitStatus @default(DISPONIBLE)
+  // Notes
+  internalNotes       String?
+  // Metadata
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  blocks       Block[]
+  reservations Reservation[]
+  sales        Sale[]
+  punchLists   PunchList[]
+  warranties   Warranty[]
+}
+
+// =====================================================================
+// 15. BLOCKS (BLOQUEOS)
+// =====================================================================
+
+enum BlockStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  RELEASED
+  CONVERTED_TO_RESERVATION
+}
+
+enum BlockReason {
+  CLIENTE_EVALUANDO
+  PENDIENTE_DOCUMENTOS
+  PENDIENTE_CREDITO
+  NEGOCIACION_PRECIO
+  OTRO
+}
+
+model Block {
+  id                String      @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace   @relation(fields: [workspaceId], references: [id])
+  unitId            String
+  unit              Unit        @relation(fields: [unitId], references: [id])
+  contactId         String
+  reason            BlockReason
+  customReason      String?
+  responsibleUserId String
+  // Time
+  startDate         DateTime    @default(now())
+  expiresAt         DateTime
+  releasedAt        DateTime?
+  // Status
+  status            BlockStatus @default(ACTIVE)
+  notes             String?
+  // Metadata
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// =====================================================================
+// 16. RESERVATIONS
+// =====================================================================
+
+enum ReservationStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  CONVERTED_TO_SALE
+  CANCELLED
+}
+
+enum SoldBy {
+  ASESOR_INTERNO
+  AGENCIA
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
+  unitId          String
+  unit            Unit              @relation(fields: [unitId], references: [id])
+  contactId       String
+  // Financial
+  amount          Float
+  paymentDate     DateTime
+  paymentProofUrl String?
+  // Time
+  reservationDate DateTime          @default(now())
+  expiresAt       DateTime
+  // Salesperson
+  soldBy          SoldBy
+  asesorUserId    String?
+  agencyId        String?
+  // Status
+  status          ReservationStatus @default(ACTIVE)
+  notes           String?
+  // Metadata
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  Agency          Agency?           @relation(fields: [agencyId], references: [id])
+}
+
+// =====================================================================
+// 17. SALES
+// =====================================================================
+
+enum SaleStatus {
+  ACTIVE
+  IN_SIGNING_PROCESS
+  CANCELLED
+  IN_DISPUTE
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id])
+  unitId        String
+  unit          Unit       @relation(fields: [unitId], references: [id])
+  contactId     String
+  reservationId String?    @unique
+  // Financial
+  finalPrice    Float
+  closeDate     DateTime
+  // Salesperson
+  soldBy        SoldBy
+  asesorUserId  String?
+  agencyId      String?
+  hardOwner     HardOwner
+  // Status
+  status        SaleStatus @default(ACTIVE)
+  notes         String?
+  // Metadata
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  paymentPlan PaymentPlan?
+  commissions Commission[]
+  customer    Customer?
+  contracts   Contract[]
+  Agency      Agency?      @relation(fields: [agencyId], references: [id])
+}
+
+// =====================================================================
+// 18. PAYMENT PLANS & PAYMENTS
+// =====================================================================
+
+model PaymentPlanTemplate {
+  id                       String   @id @default(cuid())
+  workspaceId              String
+  projectId                String?
+  project                  Project? @relation(fields: [projectId], references: [id])
+  name                     String
+  // Sections (% of total price)
+  reservationAmount        Float? // absolute, not %
+  initialPercent           Float
+  constructionPercent      Float
+  finalPercent             Float
+  // Construction installments
+  constructionInstallments Int      @default(12)
+  constructionPeriodicity  String   @default("monthly") // monthly, bimonthly, quarterly
+  // Validation: sum should be 100%
+  isActive                 Boolean  @default(true)
+  createdAt                DateTime @default(now())
+}
+
+model PaymentPlan {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id])
+  saleId             String    @unique
+  sale               Sale      @relation(fields: [saleId], references: [id])
+  templateId         String?
+  // Totals
+  totalPrice         Float
+  totalPaid          Float     @default(0)
+  // Sections breakdown
+  reservationAmount  Float
+  initialAmount      Float
+  constructionAmount Float
+  finalAmount        Float
+  // Metadata
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  installments PaymentInstallment[]
+  payments     Payment[]
+}
+
+enum InstallmentType {
+  RESERVATION
+  INITIAL
+  CONSTRUCTION
+  FINAL
+}
+
+model PaymentInstallment {
+  id                String          @id @default(cuid())
+  paymentPlanId     String
+  paymentPlan       PaymentPlan     @relation(fields: [paymentPlanId], references: [id])
+  type              InstallmentType
+  installmentNumber Int // 1, 2, 3 (for construction)
+  expectedAmount    Float
+  dueDate           DateTime
+  paidAmount        Float           @default(0)
+  status            String          @default("pending") // pending, partial, paid, overdue
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  PARTIAL
+  CANCELLED
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CASH
+  CHECK
+  CARD
+  CRYPTO
+  OTHER
+}
+
+enum PaymentConcept {
+  RESERVATION
+  INITIAL
+  CONSTRUCTION_INSTALLMENT
+  FINAL
+  OTHER
+}
+
+model Payment {
+  id                  String         @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace      @relation(fields: [workspaceId], references: [id])
+  paymentPlanId       String
+  paymentPlan         PaymentPlan    @relation(fields: [paymentPlanId], references: [id])
+  installmentId       String?
+  // Identity
+  customerId          String
+  unitId              String
+  concept             PaymentConcept
+  // Amounts
+  expectedAmount      Float
+  receivedAmount      Float
+  // Dates
+  dueDate             DateTime
+  paidDate            DateTime?
+  // Payment info
+  method              PaymentMethod?
+  proofUrl            String?
+  // Status
+  status              PaymentStatus
+  notes               String?
+  // Reminders
+  reminder3DaysBefore Boolean        @default(false)
+  reminderDueDate     Boolean        @default(false)
+  // Metadata
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+// =====================================================================
+// 19. CONTRACTS
+// =====================================================================
+
+enum ContractType {
+  RESERVA
+  PROMESA_COMPRAVENTA
+  DEFINITIVO
+  ACTA_ENTREGA
+  ADENDA
+  OTRO
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT_FOR_SIGNATURE
+  SIGNED
+  NOTARIZED
+  CANCELLED
+}
+
+model ContractTemplate {
+  id          String       @id @default(cuid())
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id])
+  type        ContractType
+  name        String
+  fileUrl     String // .docx with {{variables}}
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  // Solo una activa por tipo
+}
+
+model Contract {
+  id                String         @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id])
+  saleId            String?
+  sale              Sale?          @relation(fields: [saleId], references: [id])
+  contactId         String
+  contact           Contact        @relation(fields: [contactId], references: [id])
+  type              ContractType
+  // Document
+  templateId        String?
+  generatedPdfUrl   String?
+  signedPdfUrl      String?
+  // Signature
+  requiresSignature Boolean        @default(true)
+  signedAt          DateTime?
+  signedByClient    Boolean        @default(false)
+  signedByCompany   Boolean        @default(false)
+  signatureLink     String?
+  // Status
+  status            ContractStatus @default(DRAFT)
+  // Metadata
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+// =====================================================================
+// 20. COMMISSIONS
+// =====================================================================
+
+enum CommissionType {
+  ASESOR_INTERNO
+  AGENCIA_EXTERNA
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+model CommissionConfig {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  // Percentages
+  internalCompany      Float // venta interna Hard Owner Compañía
+  internalAsesor       Float // venta interna Hard Owner Asesor
+  externalAgency       Float // venta por agencia
+  externalAgencyAsesor Float // venta por agencia con Hard Owner Asesor
+  updatedAt            DateTime @updatedAt
+}
+
+model Commission {
+  id           String           @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id])
+  saleId       String
+  sale         Sale             @relation(fields: [saleId], references: [id])
+  // Beneficiary
+  type         CommissionType
+  asesorUserId String?
+  agencyId     String?
+  // Calculation
+  hardOwner    HardOwner
+  percent      Float
+  amount       Float
+  // Status
+  status       CommissionStatus @default(PENDING)
+  approvedAt   DateTime?
+  approvedById String?
+  paidAt       DateTime?
+  // Notes
+  notes        String?
+  // Metadata
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  Agency       Agency?          @relation(fields: [agencyId], references: [id])
+}
+
+// =====================================================================
+// 21. CUSTOMERS (compradores)
+// =====================================================================
+
+enum CustomerStatus {
+  IN_PROCESS
+  SIGNATURE_PENDING
+  CONTRACT_SIGNED
+  IN_CONSTRUCTION
+  DELIVERED
+  CANCELLED
+}
+
+model Customer {
+  id             String         @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id])
+  // Link to CRM contact — same record
+  contactId      String         @unique
+  // Link to sale
+  saleId         String         @unique
+  sale           Sale           @relation(fields: [saleId], references: [id])
+  // Documents
+  identityDocs   Json? // [{type, url}, ...] cedula, pasaporte
+  // Status
+  status         CustomerStatus @default(IN_PROCESS)
+  // Portal access
+  portalEnabled  Boolean        @default(false)
+  portalPassword String? // hashed
+  // Notes
+  notes          String?
+  // Metadata
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  Contact        Contact[]
+}
+
+// =====================================================================
+// 22. AGENCIES
+// =====================================================================
+
+enum AgencyStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model Agency {
+  id                       String       @id @default(cuid())
+  workspaceId              String
+  workspace                Workspace    @relation(fields: [workspaceId], references: [id])
+  name                     String
+  logo                     String?
+  rnc                      String?
+  phone                    String?
+  email                    String?
+  address                  String?
+  country                  String?
+  city                     String?
+  website                  String?
+  // Contact person
+  contactPersonName        String?
+  contactPersonPhone       String?
+  contactPersonEmail       String?
+  // Contract
+  contractUrl              String?
+  defaultCommissionPercent Float?
+  // Status
+  status                   AgencyStatus @default(ACTIVE)
+  notes                    String?
+  // Metadata
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  agents       AgencyAgent[]
+  reservations Reservation[]
+  sales        Sale[]
+  commissions  Commission[]
+}
+
+model AgencyAgent {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id])
+  firstName       String
+  lastName        String
+  phone           String?
+  email           String?
+  // System access
+  hasSystemAccess Boolean  @default(false)
+  systemUserId    String?  @unique
+  isActive        Boolean  @default(true)
+  // Metadata
+  createdAt       DateTime @default(now())
+}
+
+// =====================================================================
+// 23. STAFF (equipo interno de ventas)
+// =====================================================================
+
+enum StaffRole {
+  ASESOR_VENTAS
+  COORDINADOR
+  GERENTE_VENTAS
+  DIRECTOR_COMERCIAL
+}
+
+model StaffMember {
+  id                       String    @id @default(cuid())
+  workspaceId              String
+  workspace                Workspace @relation(fields: [workspaceId], references: [id])
+  // Same user as CRM
+  userId                   String    @unique
+  user                     User      @relation(fields: [userId], references: [id])
+  role                     StaffRole
+  // Assignments
+  assignedProjectIds       String[]
+  assignedUnitIds          String[]
+  // Goals
+  monthlyGoalUsd           Float?
+  monthlyGoalUnits         Int?
+  // Commission default
+  defaultCommissionPercent Float?
+  // Dates
+  hireDate                 DateTime?
+  isActive                 Boolean   @default(true)
+  notes                    String?
+  // Metadata
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
+
+// =====================================================================
+// 24. WORK ORDERS (Manejo de Obra)
+// =====================================================================
+
+enum WorkOrderStatus {
+  DRAFT
+  SENT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  IN_DISPUTE
+}
+
+enum WorkType {
+  ELECTRICIDAD
+  PLOMERIA
+  ACABADOS
+  ESTRUCTURA
+  PINTURA
+  CARPINTERIA
+  OTRO
+}
+
+model WorkOrder {
+  id                    String          @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace       @relation(fields: [workspaceId], references: [id])
+  orderNumber           String // auto-generated
+  title                 String
+  description           String?         @db.Text
+  // Location
+  projectId             String
+  buildingId            String?
+  area                  String?
+  // Type
+  workType              WorkType
+  // Assignment
+  subcontractorId       String?
+  supplierId            String?
+  internalResponsibleId String?
+  // Dates
+  startDate             DateTime?
+  deadline              DateTime?
+  completedAt           DateTime?
+  // Financial
+  amount                Float?
+  // Documents
+  documents             Json?
+  photos                String[]
+  // Status
+  status                WorkOrderStatus @default(DRAFT)
+  notes                 String?
+  // Tracking
+  budgetItemId          String?
+  // Metadata
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+// =====================================================================
+// 25. BUDGET (Presupuesto de Obra)
+// =====================================================================
+
+enum BudgetCategory {
+  ESTRUCTURA
+  ELECTRICIDAD
+  PLOMERIA
+  ACABADOS
+  CARPINTERIA
+  PINTURA
+  EQUIPOS
+  HONORARIOS
+  IMPREVISTOS
+  OTRO
+}
+
+enum BudgetItemStatus {
+  IN_BUDGET
+  NEAR_LIMIT
+  OVER_BUDGET
+  COMPLETED
+}
+
+model BudgetItem {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
+  projectId       String
+  category        BudgetCategory
+  name            String
+  description     String?
+  // Amounts
+  budgetedAmount  Float
+  executedAmount  Float            @default(0)
+  // Responsibility
+  subcontractorId String?
+  supplierId      String?
+  // Status
+  status          BudgetItemStatus @default(IN_BUDGET)
+  notes           String?
+  // Metadata
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+// =====================================================================
+// 26. SCHEDULE (Cronograma de Obra)
+// =====================================================================
+
+enum ScheduleStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED_ON_TIME
+  COMPLETED_LATE
+  DELAYED
+}
+
+model ScheduleItem {
+  id               String         @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id])
+  projectId        String
+  buildingId       String?
+  name             String
+  description      String?
+  // Planned
+  plannedStartDate DateTime
+  plannedEndDate   DateTime
+  // Real
+  realStartDate    DateTime?
+  realEndDate      DateTime?
+  // Progress
+  progressPercent  Int            @default(0)
+  // Assignment
+  responsibleId    String?
+  // Dependencies
+  dependsOnId      String? // ID of another ScheduleItem
+  // Status
+  status           ScheduleStatus @default(PENDING)
+  notes            String?
+  // Metadata
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+// =====================================================================
+// 27. CONSTRUCTION PROGRESS (Avance de Obra)
+// =====================================================================
+
+model ProgressEntry {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id])
+  projectId          String
+  buildingId         String?
+  area               String?
+  scheduleItemId     String?
+  // Progress
+  progressPercent    Int
+  description        String?   @db.Text
+  // Media
+  photos             String[] // mín 1
+  videos             String[]
+  // Visibility
+  visibleToCustomers Boolean   @default(true)
+  // Metadata
+  registeredById     String
+  registeredAt       DateTime  @default(now())
+  notes              String?
+}
+
+// =====================================================================
+// 28. INSPECTIONS
+// =====================================================================
+
+enum InspectionType {
+  ESTRUCTURAL
+  ELECTRICA
+  PLOMERIA
+  ACABADOS
+  SEGURIDAD
+  GENERAL
+}
+
+enum InspectionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  APPROVED
+  APPROVED_WITH_OBSERVATIONS
+  REJECTED
+  REINSPECTION_PENDING
+}
+
+model InspectionTemplate {
+  id             String         @id @default(cuid())
+  workspaceId    String
+  type           InspectionType
+  name           String
+  checklistItems Json // [{name, required}, ...]
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+}
+
+model Inspection {
+  id                   String           @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace        @relation(fields: [workspaceId], references: [id])
+  title                String
+  projectId            String
+  buildingId           String?
+  floor                String?
+  type                 InspectionType
+  scheduleItemId       String?
+  inspectorId          String?
+  // Time
+  scheduledFor         DateTime
+  actualDate           DateTime?
+  // Content
+  checklistResults     Json // [{item, status, notes}, ...]
+  observations         String?
+  photos               String[]
+  // Result
+  result               InspectionStatus @default(SCHEDULED)
+  requiresReinspection Boolean          @default(false)
+  reinspectionDate     DateTime?
+  // Metadata
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+// =====================================================================
+// 29. SUBCONTRACTORS
+// =====================================================================
+
+enum SubcontractorSpecialty {
+  ELECTRICIDAD
+  PLOMERIA
+  ACABADOS
+  ESTRUCTURA
+  PINTURA
+  CARPINTERIA
+  IMPERMEABILIZACION
+  AIRE_ACONDICIONADO
+  OTRO
+}
+
+model Subcontractor {
+  id                 String                 @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace              @relation(fields: [workspaceId], references: [id])
+  // Identity
+  name               String
+  type               String // empresa, persona
+  specialty          SubcontractorSpecialty
+  taxId              String? // RNC o Cédula
+  // Contact
+  phone              String?
+  email              String?
+  address            String?
+  contactPersonName  String?
+  contactPersonPhone String?
+  // Projects
+  assignedProjectIds String[]
+  // Contract
+  contractUrl        String?
+  retentionPercent   Float?
+  // Status
+  isActive           Boolean                @default(true)
+  notes              String?
+  // Metadata
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+}
+
+// =====================================================================
+// 30. SUPPLIERS
+// =====================================================================
+
+enum SupplierCategory {
+  MATERIALES_CONSTRUCCION
+  EQUIPOS
+  HERRAMIENTAS
+  ACABADOS
+  ELECTRICO
+  PLOMERIA
+  PINTURA
+  OTRO
+}
+
+enum PaymentTerms {
+  CONTADO
+  DAYS_15
+  DAYS_30
+  DAYS_60
+  OTHER
+}
+
+model Supplier {
+  id                 String           @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace        @relation(fields: [workspaceId], references: [id])
+  name               String
+  category           SupplierCategory
+  taxId              String?
+  phone              String?
+  email              String?
+  address            String?
+  contactPersonName  String?
+  contactPersonPhone String?
+  paymentTerms       PaymentTerms     @default(CONTADO)
+  assignedProjectIds String[]
+  contractUrl        String?
+  isActive           Boolean          @default(true)
+  notes              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+// =====================================================================
+// 31. SUPPLIER PAYMENTS
+// =====================================================================
+
+enum SupplierPaymentStatus {
+  PENDING
+  OVERDUE
+  PAID
+  PARTIAL
+  CANCELLED
+}
+
+model SupplierPayment {
+  id               String                @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace             @relation(fields: [workspaceId], references: [id])
+  supplierId       String?
+  subcontractorId  String?
+  workOrderId      String?
+  budgetItemId     String?
+  concept          String
+  amount           Float
+  retentionPercent Float?
+  netAmount        Float // calculated
+  dueDate          DateTime
+  paidDate         DateTime?
+  method           PaymentMethod?
+  proofUrl         String?
+  status           SupplierPaymentStatus @default(PENDING)
+  notes            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+// =====================================================================
+// 32. AREA SUPERVISION
+// =====================================================================
+
+enum AreaStatus {
+  NORMAL
+  REQUIRES_ATTENTION
+  CRITICAL
+  INACTIVE
+}
+
+model AreaSupervision {
+  id            String     @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id])
+  name          String
+  projectId     String
+  buildingId    String?
+  description   String?
+  responsibleId String?
+  currentStatus AreaStatus @default(NORMAL)
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  reports AreaReport[]
+}
+
+model AreaReport {
+  id             String          @id @default(cuid())
+  areaId         String
+  area           AreaSupervision @relation(fields: [areaId], references: [id])
+  reportDate     DateTime        @default(now())
+  personnelCount Int
+  activities     String          @db.Text
+  incidents      String?
+  photos         String[]
+  status         AreaStatus
+  notes          String?
+  createdById    String
+}
+
+// =====================================================================
+// 33. DELIVERY ACTS (Actas de Entrega)
+// =====================================================================
+
+enum DeliveryActStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  PENDING_SIGNATURE
+  CANCELLED
+}
+
+model DeliveryActTemplate {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  name           String
+  checklistItems Json // [{item, required}, ...]
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+model DeliveryAct {
+  id                         String            @id @default(cuid())
+  workspaceId                String
+  workspace                  Workspace         @relation(fields: [workspaceId], references: [id])
+  unitId                     String
+  customerId                 String
+  scheduledDate              DateTime
+  inspectorId                String?
+  // Checklist
+  checklistResults           Json // [{item, status, notes}, ...]
+  // Observations
+  generalObservations        String?           @db.Text
+  // Media
+  photos                     String[] // mín 5
+  // Specifics
+  meterReadings              String?
+  keysDelivered              Int               @default(1)
+  documentsDelivered         String?
+  // Signatures
+  clientSignatureUrl         String?
+  representativeSignatureUrl String?
+  clientSignedAt             DateTime?
+  representativeSignedAt     DateTime?
+  // Status
+  status                     DeliveryActStatus @default(SCHEDULED)
+  // PDF
+  signedActUrl               String?
+  // Metadata
+  notes                      String?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+}
+
+// =====================================================================
+// 34. WARRANTIES
+// =====================================================================
+
+enum WarrantyType {
+  ESTRUCTURAL
+  ELECTRICA
+  PLOMERIA
+  ACABADOS
+  EQUIPOS
+  OTRO
+}
+
+enum WarrantyStatus {
+  REPORTED
+  IN_EVALUATION
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+  ESCALATED
+}
+
+enum Priority {
+  ALTA
+  MEDIA
+  BAJA
+}
+
+model Warranty {
+  id               String         @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id])
+  unitId           String
+  unit             Unit           @relation(fields: [unitId], references: [id])
+  customerId       String
+  type             WarrantyType
+  description      String         @db.Text
+  // Media
+  problemPhotos    String[]
+  resolutionPhotos String[]
+  // Reporting
+  reportedAt       DateTime       @default(now())
+  reportedByType   String // Cliente, Inspector, Asesor
+  reportedById     String?
+  // Resolution
+  assignedToType   String? // Subcontratista, Proveedor
+  assignedToId     String?
+  deadline         DateTime?
+  resolvedAt       DateTime?
+  priority         Priority       @default(MEDIA)
+  // Status
+  status           WarrantyStatus @default(REPORTED)
+  notes            String?
+  // Metadata
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+// =====================================================================
+// 35. PUNCH LISTS
+// =====================================================================
+
+enum PunchListStatus {
+  OPEN
+  IN_PROGRESS
+  NEAR_COMPLETE
+  COMPLETED
+}
+
+enum PunchItemStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+model PunchList {
+  id              String          @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id])
+  unitId          String
+  unit            Unit            @relation(fields: [unitId], references: [id])
+  customerId      String
+  deliveryActId   String?
+  responsibleId   String?
+  generalDeadline DateTime?
+  status          PunchListStatus @default(OPEN)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  items PunchItem[]
+}
+
+model PunchItem {
+  id              String          @id @default(cuid())
+  punchListId     String
+  punchList       PunchList       @relation(fields: [punchListId], references: [id])
+  description     String
+  location        String?
+  problemPhoto    String?
+  resolutionPhoto String?
+  // Assignment
+  responsibleType String? // Subcontratista, Proveedor
+  responsibleId   String?
+  priority        Priority        @default(MEDIA)
+  deadline        DateTime?
+  // Status
+  status          PunchItemStatus @default(PENDING)
+  resolvedAt      DateTime?
+}
+
+// =====================================================================
+// 36. INTEGRATION CREDENTIALS (per workspace)
+// =====================================================================
+
+model IntegrationCredential {
+  id          String   @id @default(cuid())
+  workspaceId String
+  // Type
+  provider    String // twilio, evolution_api, retell, alterestate, meta, google
+  scope       String // workspace, user
+  userId      String? // if scope=user
+  // Encrypted credentials
+  credentials Json // encrypted at rest
+  // Status
+  isActive    Boolean  @default(true)
+  // Provider-specific metadata
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =====================================================================
+// 37. CUSTOM FIELDS DEFINITIONS
+// =====================================================================
+
+model CustomFieldDefinition {
+  id          String   @id @default(cuid())
+  workspaceId String
+  entityType  String // contact, deal, unit, etc.
+  key         String
+  label       String
+  fieldType   String // text, number, dropdown, multiselect, date, boolean
+  options     Json? // for dropdowns
+  isRequired  Boolean  @default(false)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, entityType, key])
+}
+
+// =====================================================================
+// 38. WHATSAPP CRM AGENT (manejo del CRM por WhatsApp)
+// =====================================================================
+
+model WhatsappCrmAction {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  userId           String // asesor que envió el mensaje
+  // Input
+  inputType        String // text, voice, image
+  inputContent     String   @db.Text
+  inputMediaUrl    String?
+  transcribedText  String?
+  // AI processing
+  parsedIntent     Json // {actions: [...], summary: ""}
+  // Confirmation
+  confirmationSent Boolean  @default(false)
+  userConfirmed    Boolean?
+  // Execution
+  executedActions  Json // [{action, status, result}, ...]
+  successCount     Int      @default(0)
+  failureCount     Int      @default(0)
+  // Metadata
+  createdAt        DateTime @default(now())
+}
+
+// =====================================================================
+// END OF SCHEMA
+// =====================================================================
