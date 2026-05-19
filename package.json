@@ -16,9 +16,11 @@
     "db:apply": "node --env-file=.env prisma/scripts/apply-sql.mjs",
     "db:verify": "node --env-file=.env prisma/scripts/verify-schema.mjs",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx --env-file=.env --env-file=.env.local prisma/seed.ts",
     "test": "vitest",
     "test:e2e": "playwright test",
+    "test:fase-1a": "node --env-file=.env --env-file=.env.local prisma/scripts/test-login-flow.mjs",
+    "test:rls": "node --env-file=.env --env-file=.env.local prisma/scripts/test-rls-isolation.mjs",
     "prepare": "echo 'skip husky'"
   },
   "dependencies": {

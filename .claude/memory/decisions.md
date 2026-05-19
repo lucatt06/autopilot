@@ -145,6 +145,45 @@ Archivo baseline: `prisma/migrations/0001_init.sql` (1796 líneas).
 
 ---
 
+## 2026-05-19 — Fase 1A cerrada ✅
+
+**Decisión:** Fase 1A — Fundación completada. Todos los gates de Doc 4 §8.4 aplicables están aprobados.
+
+**Bloques completados:**
+- A — Bootstrap Next.js 14.2.35 + TS + Tailwind + shadcn
+- B — Schema completo (66 tablas, 53 enums, 97 FKs, 79 índices)
+- C — RLS (264 policies, test 8/8 ✓)
+- D — Auth (login email/pass + Google OAuth + middleware multi-tenant)
+- E — Layout principal estilo Odoo (5 sidebars, app switcher, 70 stubs)
+- F — Seed inicial (Trinova + Super Admin Lucas + pipeline + calendarios + tags)
+
+**Resultados de validación final:**
+- `npm run test:rls` → 8/8 ✓ (aislamiento cross-workspace)
+- `npm run test:fase-1a` → 16/16 ✓ (login E2E + lectura RLS de datos del seed)
+
+**Defaults del workspace Trinova:**
+- timezone: America/Santo_Domingo, currency: USD, language: es
+- enabledModules: ['crm', 'real_estate']
+- primaryColor: #2563EB
+
+**Super Admin Lucas:**
+- Email: lucatt06@gmail.com
+- workspaceId: vinculado a Trinova (puede operar dentro + tiene bypass global vía role SUPER_ADMIN)
+- Auth user creado en Supabase + User row vinculado al mismo UUID
+
+**Pipeline default:**
+- Nuevo lead → Contactado → Cita programada → Negociación → Ganado (isWon) / Perdido (isLost)
+
+**CommissionConfig default (Doc 1 §8.13):**
+- Venta interna + Hard Owner Compañía: 1%
+- Venta interna + Hard Owner Asesor: 3%
+- Venta por agencia externa: 5%
+- Venta por agencia + Hard Owner Asesor: 2.5%
+
+Próximo: **Fase 1B — CRM Core** (Contactos, Pipelines reales, Negocios Kanban, Tareas, Calendarios+Citas).
+
+---
+
 ## 2026-05-19 — Comunicación de modelo recomendado
 
 **Decisión:** Per `user_preferences.md`, antes de iniciar cada fase, recomendar explícitamente qué modelo usar:
