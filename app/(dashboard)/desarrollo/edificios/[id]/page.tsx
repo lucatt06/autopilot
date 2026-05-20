@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Building2, ChevronLeft, Pencil } from 'lucide-react'
+import { Building2, ChevronLeft, Copy, Pencil, Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -90,13 +90,17 @@ export default async function BuildingDetailPage({ params }: PageProps) {
         </div>
         {canManage && (
           <>
-            {remainingToGenerate > 0 && (
-              <Button asChild size="sm">
-                <Link href={`/desarrollo/unidades/generar?buildingId=${building.id}`}>
-                  Generar {remainingToGenerate} unidades
-                </Link>
-              </Button>
-            )}
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/desarrollo/unidades/nuevo?buildingId=${building.id}`}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Nueva unidad
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href={`/desarrollo/unidades/generar?buildingId=${building.id}`}>
+                Generar en lote
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href={`/desarrollo/edificios/${building.id}/editar`}>Editar</Link>
             </Button>
@@ -259,13 +263,22 @@ export default async function BuildingDetailPage({ params }: PageProps) {
                       </td>
                       {canManage && (
                         <td className="px-4 py-2.5 text-center">
-                          <Link
-                            href={`/desarrollo/unidades/${u.id}/editar`}
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            <Pencil className="h-3 w-3" />
-                            Editar
-                          </Link>
+                          <div className="flex items-center justify-center gap-3">
+                            <Link
+                              href={`/desarrollo/unidades/nuevo?buildingId=${building.id}&copyFrom=${u.id}`}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <Copy className="h-3 w-3" />
+                              Duplicar
+                            </Link>
+                            <Link
+                              href={`/desarrollo/unidades/${u.id}/editar`}
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Editar
+                            </Link>
+                          </div>
                         </td>
                       )}
                     </tr>

@@ -47,13 +47,13 @@ export default async function GenerateUnitsPage({ searchParams }: PageProps) {
             Generar unidades — {building.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {building.numberOfFloors} pisos · {building.unitsPerFloor} unidades/piso configuradas ·{' '}
+            {building.numberOfFloors} pisos ·{' '}
             {building._count.units} unidades existentes
           </p>
         </div>
       </div>
 
-      <Card className="max-w-2xl">
+      <Card className="max-w-4xl">
         <CardHeader>
           <CardTitle className="text-base">Configuración de generación</CardTitle>
         </CardHeader>

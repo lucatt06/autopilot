@@ -24,6 +24,7 @@ import {
   STATUS_LABELS,
   VIEW_LABELS,
 } from '@/lib/units/schemas'
+import { PriceInput } from '@/components/ui/price-input'
 
 interface InitialValues {
   id: string
@@ -244,11 +245,9 @@ export function EditUnitForm({ unit }: { unit: InitialValues }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="basePrice">Precio base (USD) *</Label>
-            <Input
+            <PriceInput
               id="basePrice"
               name="basePrice"
-              type="number"
-              min={1}
               required
               disabled={isPending}
               defaultValue={unit.basePrice}
@@ -256,11 +255,9 @@ export function EditUnitForm({ unit }: { unit: InitialValues }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="currentPrice">Precio actual (USD) *</Label>
-            <Input
+            <PriceInput
               id="currentPrice"
               name="currentPrice"
-              type="number"
-              min={1}
               required
               disabled={isPending}
               defaultValue={unit.currentPrice}

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { Folder } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -18,25 +19,53 @@ import {
 } from '@/components/ui/select'
 import { createUnit } from '@/app/actions/units'
 import { UNIT_STATUSES, UNIT_TYPES, UNIT_VIEWS, STATUS_LABELS, VIEW_LABELS } from '@/lib/units/schemas'
+import { useInheritedProjectId } from '@/lib/projects/use-inherited-project'
+import { PriceInput } from '@/components/ui/price-input'
 
 const NONE = '__none__'
+
+interface DefaultValues {
+  type: string
+  bedrooms: number
+  bathrooms: number
+  squareMeters: number
+  terraceSquareMeters?: number | null
+  basePrice: number
+  currentPrice: number
+  view?: string | null
+  orientation?: string | null
+  internalNotes?: string | null
+  floorPlan?: string | null
+}
 
 interface Props {
   projects: { id: string; name: string }[]
   buildings: { id: string; name: string; projectId: string; numberOfFloors: number }[]
   defaultBuildingId?: string
   defaultProjectId?: string
+  defaultValues?: DefaultValues
 }
 
-export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultProjectId }: Props) {
+export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultProjectId, defaultValues }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
-  const [type, setType] = useState('2 Hab')
+  const [type, setType] = useState(defaultValues?.type ?? '2 Hab')
   const [status, setStatus] = useState('DISPONIBLE')
-  const [view, setView] = useState(NONE)
-  const [projectId, setProjectId] = useState(defaultProjectId ?? NONE)
+  const [view, setView] = useState(defaultValues?.view ?? NONE)
   const [buildingId, setBuildingId] = useState(defaultBuildingId ?? NONE)
+
+  // The contextual building (if any) determines the project; otherwise the
+  // global selector does. When inherited, the project picker is hidden entirely.
+  const contextualProjectId =
+    defaultBuildingId ? buildings.find((b) => b.id === defaultBuildingId)?.projectId : undefined
+  const inheritedProjectId = useInheritedProjectId(contextualProjectId)
+  const inheritedProject = inheritedProjectId
+    ? projects.find((p) => p.id === inheritedProjectId)
+    : undefined
+
+  const [pickedProjectId, setPickedProjectId] = useState(defaultProjectId ?? NONE)
+  const projectId = inheritedProjectId ?? pickedProjectId
 
   const filteredBuildings =
     projectId === NONE ? buildings : buildings.filter((b) => b.projectId === projectId)
@@ -47,9 +76,13 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
       return
     }
     setError(null)
+    // The unit's project always follows its building (server re-derives it too).
+    const resolvedProjectId =
+      buildings.find((b) => b.id === buildingId)?.projectId ??
+      (projectId !== NONE ? projectId : '')
     const input = {
       buildingId,
-      projectId: projects.find((p) => p.id === projectId)?.id ?? '',
+      projectId: resolvedProjectId,
       unitNumber: String(formData.get('unitNumber') ?? '').trim(),
       floor: Number(formData.get('floor') ?? 0),
       type,
@@ -72,12 +105,19 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
         setError(result.error)
         return
       }
-      toast.success('Unidad creada')
-      if (result.data?.id) {
-        router.push(`/desarrollo/unidades/${result.data.id}`)
-      } else {
-        router.push('/desarrollo/unidades')
-      }
+
+      const params = new URLSearchParams()
+      if (buildingId !== NONE) params.set('buildingId', buildingId)
+      params.set('copyFrom', result.data!.id)
+
+      toast.success(`Unidad ${input.unitNumber} creada`, {
+        action: {
+          label: 'Crear similar',
+          onClick: () => router.push(`/desarrollo/unidades/nuevo?${params}`),
+        },
+        duration: 8000,
+      })
+      router.push(`/desarrollo/unidades/${result.data?.id}`)
     })
   }
 
@@ -92,20 +132,30 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-muted-foreground">Ubicación</legend>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Proyecto</Label>
-            <Select value={projectId} onValueChange={(v) => { setProjectId(v); setBuildingId(NONE) }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar proyecto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>Todos los proyectos</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {inheritedProject ? (
+            <div className="space-y-2">
+              <Label>Proyecto</Label>
+              <div className="flex h-10 items-center gap-2 rounded-md border border-primary bg-primary/5 px-3 text-sm font-medium text-primary">
+                <Folder className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{inheritedProject.name}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Proyecto</Label>
+              <Select value={pickedProjectId} onValueChange={(v) => { setPickedProjectId(v); setBuildingId(NONE) }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar proyecto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Todos los proyectos</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Edificio *</Label>
             <Select value={buildingId} onValueChange={setBuildingId}>
@@ -169,11 +219,26 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
           </div>
           <div className="space-y-2">
             <Label htmlFor="bedrooms">Habitaciones</Label>
-            <Input id="bedrooms" name="bedrooms" type="number" min={0} disabled={isPending} defaultValue={2} />
+            <Input
+              id="bedrooms"
+              name="bedrooms"
+              type="number"
+              min={0}
+              disabled={isPending}
+              defaultValue={defaultValues?.bedrooms ?? 2}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="bathrooms">Baños</Label>
-            <Input id="bathrooms" name="bathrooms" type="number" min={0} step={0.5} disabled={isPending} defaultValue={2} />
+            <Input
+              id="bathrooms"
+              name="bathrooms"
+              type="number"
+              min={0}
+              step={0.5}
+              disabled={isPending}
+              defaultValue={defaultValues?.bathrooms ?? 2}
+            />
           </div>
           <div className="space-y-2">
             <Label>Vista</Label>
@@ -189,15 +254,39 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="squareMeters">m² *</Label>
-            <Input id="squareMeters" name="squareMeters" type="number" min={1} step={0.01} required disabled={isPending} defaultValue={80} />
+            <Input
+              id="squareMeters"
+              name="squareMeters"
+              type="number"
+              min={1}
+              step={0.01}
+              required
+              disabled={isPending}
+              defaultValue={defaultValues?.squareMeters ?? 80}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="terraceSquareMeters">m² Terraza</Label>
-            <Input id="terraceSquareMeters" name="terraceSquareMeters" type="number" min={0} step={0.01} disabled={isPending} />
+            <Input
+              id="terraceSquareMeters"
+              name="terraceSquareMeters"
+              type="number"
+              min={0}
+              step={0.01}
+              disabled={isPending}
+              defaultValue={defaultValues?.terraceSquareMeters ?? undefined}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="orientation">Orientación</Label>
-            <Input id="orientation" name="orientation" disabled={isPending} placeholder="N, S, NE…" maxLength={10} />
+            <Input
+              id="orientation"
+              name="orientation"
+              disabled={isPending}
+              placeholder="N, S, NE…"
+              maxLength={10}
+              defaultValue={defaultValues?.orientation ?? undefined}
+            />
           </div>
         </div>
       </fieldset>
@@ -207,11 +296,23 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="basePrice">Precio base *</Label>
-            <Input id="basePrice" name="basePrice" type="number" min={1} required disabled={isPending} defaultValue={150000} />
+            <PriceInput
+              id="basePrice"
+              name="basePrice"
+              required
+              disabled={isPending}
+              defaultValue={defaultValues?.basePrice ?? 150000}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="currentPrice">Precio actual *</Label>
-            <Input id="currentPrice" name="currentPrice" type="number" min={1} required disabled={isPending} defaultValue={150000} />
+            <PriceInput
+              id="currentPrice"
+              name="currentPrice"
+              required
+              disabled={isPending}
+              defaultValue={defaultValues?.currentPrice ?? 150000}
+            />
           </div>
         </div>
       </fieldset>
@@ -220,17 +321,33 @@ export function NewUnitForm({ projects, buildings, defaultBuildingId, defaultPro
         <legend className="text-sm font-semibold text-muted-foreground">Extras</legend>
         <div className="space-y-2">
           <Label htmlFor="floorPlan">URL del plano</Label>
-          <Input id="floorPlan" name="floorPlan" type="url" disabled={isPending} placeholder="https://..." />
+          <Input
+            id="floorPlan"
+            name="floorPlan"
+            type="url"
+            disabled={isPending}
+            placeholder="https://..."
+            defaultValue={defaultValues?.floorPlan ?? undefined}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="internalNotes">Notas internas</Label>
-          <Textarea id="internalNotes" name="internalNotes" disabled={isPending} rows={3} placeholder="Visible solo para admins..." />
+          <Textarea
+            id="internalNotes"
+            name="internalNotes"
+            disabled={isPending}
+            rows={3}
+            placeholder="Visible solo para admins..."
+            defaultValue={defaultValues?.internalNotes ?? undefined}
+          />
         </div>
       </fieldset>
 
       <div className="flex items-center justify-end gap-2 border-t pt-4">
         <Button asChild variant="outline" disabled={isPending}>
-          <a href="/desarrollo/unidades">Cancelar</a>
+          <a href={defaultBuildingId ? `/desarrollo/edificios/${defaultBuildingId}` : '/desarrollo/unidades'}>
+            Cancelar
+          </a>
         </Button>
         <Button type="submit" disabled={isPending}>
           {isPending ? 'Guardando...' : 'Crear unidad'}

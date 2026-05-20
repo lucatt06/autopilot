@@ -154,8 +154,8 @@ export const REAL_ESTATE_NAV: NavSection[] = [
   {
     label: 'Principal',
     items: [
-      { label: 'Proyectos', href: '/desarrollo/proyectos', icon: 'Folder' },
       { label: 'Dashboard', href: '/desarrollo', icon: 'LayoutDashboard' },
+      { label: 'Proyectos', href: '/desarrollo/proyectos', icon: 'Folder' },
       { label: 'Edificios', href: '/desarrollo/edificios', icon: 'Building2' },
       { label: 'Unidades', href: '/desarrollo/unidades', icon: 'Home' },
       { label: 'Disponibilidad', href: '/desarrollo/disponibilidad', icon: 'MapPin' },

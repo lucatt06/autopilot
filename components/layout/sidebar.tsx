@@ -24,7 +24,7 @@ export function Sidebar({ sections, title, basePath, headerExtra }: SidebarProps
       {(title || headerExtra) && (
         <div className="space-y-3 border-b px-4 py-4">
           {title && (
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {title}
             </h2>
           )}
@@ -36,9 +36,12 @@ export function Sidebar({ sections, title, basePath, headerExtra }: SidebarProps
         {sections.map((section, sIdx) => (
           <div key={sIdx} className="mb-2">
             {section.label && (
-              <div className="mb-1 px-3 pt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
-                {section.label}
-              </div>
+              <>
+                <div className="mb-1 px-3 pt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
+                  {section.label}
+                </div>
+                <div className="mx-3 mb-2 border-t" />
+              </>
             )}
 
             <ul className="flex flex-col gap-0.5">

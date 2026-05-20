@@ -53,6 +53,9 @@ export default async function UnitsPage({ searchParams }: PageProps) {
   const globalProjectIds = parseProjectIdsFromParam(filters.projects)
   const hasGlobalProject = globalProjectIds.length > 0
   const hasProjectFilter = hasGlobalProject || !!filters.projectId
+  const newUnitHref = hasGlobalProject
+    ? `/desarrollo/unidades/nuevo?projects=${globalProjectIds.join(',')}`
+    : '/desarrollo/unidades/nuevo'
 
   return (
     <div className="space-y-4">
@@ -65,7 +68,7 @@ export default async function UnitsPage({ searchParams }: PageProps) {
         </div>
         {canManage && (
           <Button asChild size="sm">
-            <Link href="/desarrollo/unidades/nuevo">
+            <Link href={newUnitHref}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Nueva unidad
             </Link>

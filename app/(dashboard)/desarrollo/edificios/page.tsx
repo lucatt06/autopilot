@@ -42,6 +42,9 @@ export default async function BuildingsPage({ searchParams }: PageProps) {
 
   const globalProjectIds = parseProjectIdsFromParam(filters.projects)
   const hideProjectColumn = globalProjectIds.length === 1 || !!filters.projectId
+  const newBuildingHref = globalProjectIds.length > 0
+    ? `/desarrollo/edificios/nuevo?projects=${globalProjectIds.join(',')}`
+    : '/desarrollo/edificios/nuevo'
 
   // Determine which project IDs are currently in view
   const viewedProjectIds = filters.projectId
@@ -65,7 +68,7 @@ export default async function BuildingsPage({ searchParams }: PageProps) {
         </div>
         {canManage && (
           <Button asChild size="sm">
-            <Link href="/desarrollo/edificios/nuevo">
+            <Link href={newBuildingHref}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Nuevo edificio
             </Link>

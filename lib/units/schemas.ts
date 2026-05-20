@@ -29,6 +29,9 @@ export const VIEW_LABELS: Record<UnitViewKey, string> = {
   INTERIOR: 'Interior',
 }
 
+export const UNIT_ORIENTATIONS = ['Norte', 'Sur', 'Este', 'Oeste', 'NE', 'NO', 'SE', 'SO'] as const
+export type UnitOrientationKey = (typeof UNIT_ORIENTATIONS)[number]
+
 export const UNIT_TYPES = ['Estudio', '1 Hab', '2 Hab', '3 Hab', '4 Hab', 'PH', 'Local Comercial', 'Oficina'] as const
 
 export const unitFiltersSchema = z.object({
@@ -43,6 +46,14 @@ export const unitFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(500).default(100),
   projects: z.string().optional(),
+  view: z.enum(UNIT_VIEWS).optional(),
+  orientation: z.string().max(10).optional(),
+  // multi-select variants (comma-separated IDs/values)
+  buildingIds: z.string().optional(),
+  types: z.string().optional(),
+  statuses: z.string().optional(),
+  views: z.string().optional(),
+  orientations: z.string().optional(),
 })
 export type UnitFilters = z.infer<typeof unitFiltersSchema>
 
@@ -82,3 +93,27 @@ export const generateUnitsSchema = z.object({
   numberingStyle: z.enum(['floor_letter', 'floor_number', 'sequential']).default('floor_number'),
 })
 export type GenerateUnitsInput = z.infer<typeof generateUnitsSchema>
+
+export const unitGenerateTemplateSchema = z.object({
+  type: z.string().min(1).max(50),
+  bedrooms: z.coerce.number().int().min(0),
+  bathrooms: z.coerce.number().min(0),
+  squareMeters: z.coerce.number().positive(),
+  basePrice: z.coerce.number().positive(),
+  view: z.enum(UNIT_VIEWS).optional(),
+})
+export type UnitGenerateTemplate = z.infer<typeof unitGenerateTemplateSchema>
+
+export const floorGroupSchema = z.object({
+  floorStart: z.coerce.number().int().min(0),
+  floorEnd: z.coerce.number().int().min(0),
+  numberingStyle: z.enum(['floor_letter', 'floor_number']).default('floor_letter'),
+  templates: z.array(unitGenerateTemplateSchema).min(1).max(50),
+})
+export type FloorGroup = z.infer<typeof floorGroupSchema>
+
+export const generateUnitsGroupsSchema = z.object({
+  buildingId: z.string().min(1),
+  groups: z.array(floorGroupSchema).min(1).max(20),
+})
+export type GenerateUnitsGroupsInput = z.infer<typeof generateUnitsGroupsSchema>

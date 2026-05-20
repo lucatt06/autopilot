@@ -1097,7 +1097,7 @@ model Block {
   workspace         Workspace   @relation(fields: [workspaceId], references: [id])
   unitId            String
   unit              Unit        @relation(fields: [unitId], references: [id])
-  contactId         String
+  contactId         String?
   reason            BlockReason
   customReason      String?
   responsibleUserId String

@@ -155,3 +155,120 @@ export async function getBuildingFloorMap(buildingId: string, workspaceId: strin
 
   return floors
 }
+
+// ─── Availability feature ────────────────────────────────────────────────────
+
+export type UnitForAvailability = {
+  id: string
+  unitNumber: string
+  floor: number
+  type: string
+  bedrooms: number
+  bathrooms: number
+  squareMeters: number
+  terraceSquareMeters: number | null
+  basePrice: number
+  currentPrice: number
+  status: string
+  view: string | null
+  orientation: string | null
+}
+
+export type BuildingForAvailability = {
+  id: string
+  name: string
+  projectId: string
+  project: { id: string; name: string }
+  numberOfFloors: number
+  status: string
+  floors: { floor: number; units: UnitForAvailability[] }[]
+  stats: Record<string, number> // 'total' + each UnitStatus key
+}
+
+export async function getAvailabilityData(
+  workspaceId: string,
+  projectIds: string[],
+): Promise<BuildingForAvailability[]> {
+  const buildingWhere: Prisma.BuildingWhereInput = { workspaceId }
+  if (projectIds.length > 0) {
+    buildingWhere.projectId = { in: projectIds }
+  }
+
+  const buildings = await db.building.findMany({
+    where: buildingWhere,
+    orderBy: [{ project: { name: 'asc' } }, { name: 'asc' }],
+    include: {
+      project: { select: { id: true, name: true } },
+      units: {
+        select: {
+          id: true,
+          unitNumber: true,
+          floor: true,
+          type: true,
+          bedrooms: true,
+          bathrooms: true,
+          squareMeters: true,
+          terraceSquareMeters: true,
+          basePrice: true,
+          currentPrice: true,
+          status: true,
+          view: true,
+          orientation: true,
+        },
+        orderBy: [{ floor: 'asc' }, { unitNumber: 'asc' }],
+      },
+    },
+  })
+
+  return buildings.map((b) => {
+    // Group units by floor, sort floors desc (top floors first)
+    const byFloor = new Map<number, UnitForAvailability[]>()
+    for (const u of b.units) {
+      if (!byFloor.has(u.floor)) byFloor.set(u.floor, [])
+      byFloor.get(u.floor)!.push({
+        id: u.id,
+        unitNumber: u.unitNumber,
+        floor: u.floor,
+        type: u.type,
+        bedrooms: u.bedrooms,
+        bathrooms: u.bathrooms,
+        squareMeters: u.squareMeters,
+        terraceSquareMeters: u.terraceSquareMeters,
+        basePrice: u.basePrice,
+        currentPrice: u.currentPrice,
+        status: u.status,
+        view: u.view ?? null,
+        orientation: u.orientation,
+      })
+    }
+    const floors = Array.from(byFloor.entries())
+      .map(([floor, units]) => ({ floor, units }))
+      .sort((a, b) => b.floor - a.floor)
+
+    // Calculate stats
+    const stats: Record<string, number> = {
+      total: b.units.length,
+      DISPONIBLE: 0,
+      BLOQUEADA: 0,
+      RESERVADA: 0,
+      VENDIDA: 0,
+      ENTREGADA: 0,
+    }
+    for (const u of b.units) {
+      if (u.status in stats) {
+        stats[u.status] = (stats[u.status] ?? 0) + 1
+      }
+    }
+
+    return {
+      id: b.id,
+      name: b.name,
+      projectId: b.projectId,
+      project: b.project,
+      numberOfFloors: b.numberOfFloors,
+      status: b.status,
+      floors,
+      stats,
+    }
+  })
+}

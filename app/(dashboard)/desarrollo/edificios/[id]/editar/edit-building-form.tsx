@@ -17,38 +17,33 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { createBuilding } from '@/app/actions/buildings'
+import { updateBuilding } from '@/app/actions/buildings'
 import { BUILDING_STATUSES, STATUS_LABELS } from '@/lib/buildings/schemas'
-import { useInheritedProjectId } from '@/lib/projects/use-inherited-project'
 
-export function BuildingForm({
-  projects,
-  initialProjectId,
-}: {
-  projects: { id: string; name: string }[]
-  initialProjectId?: string
-}) {
+interface InitialValues {
+  id: string
+  projectId: string
+  projectName: string
+  name: string
+  numberOfFloors: number
+  status: string
+  constructionStage: string | null
+  expectedDeliveryDate: string | null
+  description: string | null
+  image: string | null
+}
+
+export function EditBuildingForm({ initial }: { initial: InitialValues }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
-
-  // When a single project is selected globally, inherit it and hide the picker.
-  const inheritedProjectId = useInheritedProjectId()
-  const inheritedProject = inheritedProjectId
-    ? projects.find((p) => p.id === inheritedProjectId)
-    : undefined
-
-  const [pickedProjectId, setPickedProjectId] = useState<string>(
-    initialProjectId ?? projects[0]?.id ?? ''
-  )
-  const projectId = inheritedProjectId ?? pickedProjectId
-  const [status, setStatus] = useState<string>('EN_CONSTRUCCION')
-  const [numberOfFloors, setNumberOfFloors] = useState<number>(5)
+  const [status, setStatus] = useState<string>(initial.status)
+  const [numberOfFloors, setNumberOfFloors] = useState<number>(initial.numberOfFloors)
 
   function onSubmit(formData: FormData) {
     setError(null)
     const input = {
-      projectId,
+      projectId: initial.projectId,
       name: String(formData.get('name') ?? '').trim(),
       numberOfFloors,
       description: String(formData.get('description') ?? '').trim() || undefined,
@@ -59,14 +54,14 @@ export function BuildingForm({
     }
 
     startTransition(async () => {
-      const result = await createBuilding(input as never)
+      const result = await updateBuilding(initial.id, input as never)
       if (!result.ok) {
         setError(result.error)
         return
       }
-      toast.success('Edificio creado')
-      if (result.data?.id) router.push(`/desarrollo/edificios/${result.data.id}`)
-      else router.push('/desarrollo/edificios')
+      toast.success('Edificio actualizado')
+      router.push(`/desarrollo/edificios/${initial.id}`)
+      router.refresh()
     })
   }
 
@@ -80,31 +75,13 @@ export function BuildingForm({
 
       <fieldset className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {inheritedProject ? (
-            <div className="space-y-2">
-              <Label>Proyecto</Label>
-              <div className="flex h-10 items-center gap-2 rounded-md border border-primary bg-primary/5 px-3 text-sm font-medium text-primary">
-                <Folder className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{inheritedProject.name}</span>
-              </div>
+          <div className="space-y-2">
+            <Label>Proyecto</Label>
+            <div className="flex h-10 items-center gap-2 rounded-md border border-primary bg-primary/5 px-3 text-sm font-medium text-primary">
+              <Folder className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{initial.projectName}</span>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="projectId">Proyecto *</Label>
-              <Select value={pickedProjectId} onValueChange={setPickedProjectId}>
-                <SelectTrigger id="projectId">
-                  <SelectValue placeholder="Selecciona un proyecto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="name">Nombre *</Label>
@@ -116,6 +93,7 @@ export function BuildingForm({
               placeholder="Ej. Torre A · Edificio Norte"
               maxLength={120}
               disabled={isPending}
+              defaultValue={initial.name}
             />
           </div>
         </div>
@@ -159,15 +137,17 @@ export function BuildingForm({
               placeholder="Ej. Etapa 1 · Fase A · Cimentación"
               maxLength={80}
               disabled={isPending}
+              defaultValue={initial.constructionStage ?? ''}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="expectedDeliveryDateTop">Entrega proyectada</Label>
+            <Label htmlFor="expectedDeliveryDate">Entrega proyectada</Label>
             <Input
-              id="expectedDeliveryDateTop"
+              id="expectedDeliveryDate"
               name="expectedDeliveryDate"
               type="date"
               disabled={isPending}
+              defaultValue={initial.expectedDeliveryDate ?? ''}
             />
           </div>
         </div>
@@ -180,6 +160,7 @@ export function BuildingForm({
             rows={2}
             disabled={isPending}
             placeholder="Notas internas, características del edificio…"
+            defaultValue={initial.description ?? ''}
           />
         </div>
 
@@ -191,16 +172,17 @@ export function BuildingForm({
             type="url"
             disabled={isPending}
             placeholder="https://…"
+            defaultValue={initial.image ?? ''}
           />
         </div>
       </fieldset>
 
       <div className="flex items-center justify-end gap-2 border-t pt-4">
         <Button asChild variant="outline" disabled={isPending}>
-          <a href="/desarrollo/edificios">Cancelar</a>
+          <a href={`/desarrollo/edificios/${initial.id}`}>Cancelar</a>
         </Button>
-        <Button type="submit" disabled={isPending || !projectId}>
-          {isPending ? 'Guardando...' : 'Crear edificio'}
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Guardando...' : 'Guardar cambios'}
         </Button>
       </div>
     </form>

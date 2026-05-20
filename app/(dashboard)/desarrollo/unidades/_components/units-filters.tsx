@@ -6,6 +6,7 @@ import { Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PriceInput } from '@/components/ui/price-input'
 import {
   Select,
   SelectContent,
@@ -185,22 +186,18 @@ export function UnitsFilters({ initial, projects, buildings, typeOptions, global
         onChange={(e) => update('floor', e.target.value || null)}
       />
 
-      <Input
+      <PriceInput
         placeholder="Precio mín"
-        type="number"
-        min={0}
         className="h-9 w-32 text-sm"
-        defaultValue={initial.priceMin ?? ''}
-        onChange={(e) => update('priceMin', e.target.value || null)}
+        defaultValue={initial.priceMin}
+        onValueChange={(v) => update('priceMin', v != null ? String(v) : null)}
       />
 
-      <Input
+      <PriceInput
         placeholder="Precio máx"
-        type="number"
-        min={0}
         className="h-9 w-32 text-sm"
-        defaultValue={initial.priceMax ?? ''}
-        onChange={(e) => update('priceMax', e.target.value || null)}
+        defaultValue={initial.priceMax}
+        onValueChange={(v) => update('priceMax', v != null ? String(v) : null)}
       />
 
       {hasFilters && (
