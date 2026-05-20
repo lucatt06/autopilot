@@ -47,6 +47,7 @@ export async function createBuilding(
       description: parsed.data.description ?? null,
       image: parsed.data.image ?? null,
       status: parsed.data.status,
+      constructionStage: parsed.data.constructionStage ?? null,
       expectedDeliveryDate: parsed.data.expectedDeliveryDate
         ? new Date(parsed.data.expectedDeliveryDate)
         : null,
@@ -83,11 +84,12 @@ export async function updateBuilding(
   const existing = await getBuildingById(id, user.workspaceId)
   if (!existing) return { ok: false, error: 'Edificio no encontrado' }
 
-  const { expectedDeliveryDate, ...rest } = parsed.data
+  const { expectedDeliveryDate, constructionStage, ...rest } = parsed.data
   const updated = await db.building.update({
     where: { id },
     data: {
       ...rest,
+      ...(constructionStage !== undefined && { constructionStage: constructionStage ?? null }),
       ...(expectedDeliveryDate !== undefined && {
         expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
       }),
@@ -159,6 +161,7 @@ export async function duplicateBuilding(id: string): Promise<ActionResult<{ id: 
       description: existing.description,
       image: existing.image,
       status: existing.status,
+      constructionStage: existing.constructionStage,
       expectedDeliveryDate: existing.expectedDeliveryDate,
     },
   })
@@ -185,6 +188,7 @@ export async function createBuildingFromForm(formData: FormData): Promise<Action
     description: formData.get('description'),
     image: formData.get('image'),
     status: formData.get('status'),
+    constructionStage: formData.get('constructionStage'),
     expectedDeliveryDate: formData.get('expectedDeliveryDate'),
   }
   const result = await createBuilding(input as never)

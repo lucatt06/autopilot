@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { buildingFiltersSchema } from '@/lib/buildings/schemas'
 import { listBuildings } from '@/lib/buildings/queries'
+import { parseProjectIdsFromParam } from '@/lib/projects/filter-utils'
 
 import { BuildingsTable } from './_components/buildings-table'
 import { BuildingsFilters } from './_components/buildings-filters'
@@ -34,10 +35,24 @@ export default async function BuildingsPage({ searchParams }: PageProps) {
     listBuildings({ workspaceId: user.workspaceId, filters }),
     db.project.findMany({
       where: { workspaceId: user.workspaceId, deletedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, hasStages: true },
       orderBy: { name: 'asc' },
     }),
   ])
+
+  const globalProjectIds = parseProjectIdsFromParam(filters.projects)
+  const hideProjectColumn = globalProjectIds.length === 1 || !!filters.projectId
+
+  // Determine which project IDs are currently in view
+  const viewedProjectIds = filters.projectId
+    ? [filters.projectId]
+    : globalProjectIds.length > 0
+    ? globalProjectIds
+    : projects.map((p) => p.id)
+
+  const showStageColumn = projects
+    .filter((p) => viewedProjectIds.includes(p.id))
+    .some((p) => p.hasStages)
 
   return (
     <div className="space-y-4">
@@ -58,9 +73,18 @@ export default async function BuildingsPage({ searchParams }: PageProps) {
         )}
       </div>
 
-      <BuildingsFilters initial={filters} projects={projects} />
+      <BuildingsFilters
+        initial={filters}
+        projects={projects}
+        globalProjectIds={globalProjectIds}
+      />
 
-      <BuildingsTable items={items} canManage={canManage} />
+      <BuildingsTable
+        items={items}
+        canManage={canManage}
+        hideProjectColumn={hideProjectColumn}
+        showStageColumn={showStageColumn}
+      />
     </div>
   )
 }

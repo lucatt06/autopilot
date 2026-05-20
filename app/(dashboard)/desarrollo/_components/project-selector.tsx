@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTransition } from 'react'
+import { useEffect, useTransition } from 'react'
 import { Check, ChevronDown, Folder } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { parseProjectIdsFromParam } from '@/lib/projects/filter-utils'
+
+const STORAGE_KEY = 'di_last_projects'
 
 interface ProjectOption {
   id: string
@@ -20,6 +22,7 @@ interface ProjectOption {
 /**
  * Multi-checkbox project picker shown in the DI sidebar header.
  * URL state: ?projects=id1,id2. Empty = all projects.
+ * Persists last selection to localStorage and restores it on first load.
  */
 export function ProjectSelector({ projects }: { projects: ProjectOption[] }) {
   const router = useRouter()
@@ -28,7 +31,30 @@ export function ProjectSelector({ projects }: { projects: ProjectOption[] }) {
 
   const selected = new Set(parseProjectIdsFromParam(searchParams.getAll('projects')))
 
+  // Re-run whenever the URL changes: if no ?projects= param, restore from localStorage.
+  // This makes the project selection sticky across all DI pages.
+  const searchParamsStr = searchParams.toString()
+  useEffect(() => {
+    if (searchParams.has('projects')) return
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (!saved) return
+      const ids = saved.split(',').filter(Boolean)
+      if (ids.length === 0) return
+      const validIds = ids.filter((id) => projects.some((p) => p.id === id))
+      if (validIds.length === 0) return
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('projects', validIds.join(','))
+      params.delete('page')
+      startTransition(() => router.replace(`?${params.toString()}`))
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParamsStr])
+
   function applySelection(next: Set<string>) {
+    try {
+      localStorage.setItem(STORAGE_KEY, Array.from(next).join(','))
+    } catch {}
     const params = new URLSearchParams(searchParams.toString())
     if (next.size === 0) {
       params.delete('projects')

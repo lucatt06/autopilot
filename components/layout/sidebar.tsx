@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import type { NavSection } from '@/lib/navigation'
@@ -61,14 +60,6 @@ export function Sidebar({ sections, title, basePath, headerExtra }: SidebarProps
                     >
                       <Icon name={item.icon} className="h-4 w-4 shrink-0" />
                       <span className="flex-1 truncate">{item.label}</span>
-                      {item.badge && (
-                        <Badge
-                          variant="outline"
-                          className="ml-auto h-4 px-1.5 text-[10px] font-normal"
-                        >
-                          {item.badge}
-                        </Badge>
-                      )}
                     </Link>
                   </li>
                 )

@@ -81,6 +81,7 @@ export async function listProjects({ workspaceId, filters }: ListProjectsArgs) {
       location: p.location,
       address: p.address,
       status: p.status,
+      hasStages: p.hasStages,
       progressPercent: p.progressPercent,
       startDate: p.startDate,
       expectedDeliveryDate: p.expectedDeliveryDate,
@@ -101,6 +102,7 @@ export async function getProjectById(id: string, workspaceId: string) {
     where: { id, workspaceId, deletedAt: null },
     include: {
       _count: { select: { buildings: true, units: true } },
+      stages: { orderBy: { order: 'asc' } },
     },
   })
 }

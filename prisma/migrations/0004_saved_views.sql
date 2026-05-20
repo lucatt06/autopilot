@@ -1,4 +1,8 @@
--- =====================================================================
+Error: P1017
+
+Server has closed the connection.
+
+=======================
 -- 0004 — SavedView model (Smart Lists)
 -- =====================================================================
 -- Saved filter combinations the user pins as tabs (Doc 1 §7.5).

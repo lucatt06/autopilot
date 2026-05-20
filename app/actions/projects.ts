@@ -11,6 +11,7 @@ import {
   updateProjectSchema,
   type CreateProjectInput,
   type UpdateProjectInput,
+  type ProjectStageInput,
 } from '@/lib/projects/schemas'
 import { getProjectById } from '@/lib/projects/queries'
 
@@ -48,6 +49,17 @@ export async function createProject(
       startDate: data.startDate ? new Date(data.startDate) : null,
       expectedDeliveryDate: data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null,
       images: data.coverImage ? [data.coverImage] : [],
+      hasStages: data.hasStages,
+      ...(data.hasStages && data.stages.length > 0 && {
+        stages: {
+          create: data.stages.map((s, i) => ({
+            workspaceId: user.workspaceId!,
+            name: s.name,
+            expectedDeliveryDate: s.expectedDeliveryDate ? new Date(s.expectedDeliveryDate) : null,
+            order: s.order ?? i,
+          })),
+        },
+      }),
     },
   })
 
@@ -81,7 +93,7 @@ export async function updateProject(
   const existing = await getProjectById(id, user.workspaceId)
   if (!existing) return { ok: false, error: 'Proyecto no encontrado' }
 
-  const { coverImage, startDate, expectedDeliveryDate, amenities, ...rest } = parsed.data
+  const { coverImage, startDate, expectedDeliveryDate, amenities, hasStages, stages, ...rest } = parsed.data
 
   const updated = await db.project.update({
     where: { id },
@@ -95,8 +107,25 @@ export async function updateProject(
       ...(expectedDeliveryDate !== undefined && {
         expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
       }),
+      ...(hasStages !== undefined && { hasStages }),
     },
   })
+
+  // Sync stages: replace all existing with the new list
+  if (hasStages !== undefined && stages !== undefined) {
+    await db.projectStage.deleteMany({ where: { projectId: id } })
+    if (hasStages && stages.length > 0) {
+      await db.projectStage.createMany({
+        data: stages.map((s: ProjectStageInput, i: number) => ({
+          workspaceId: user.workspaceId!,
+          projectId: id,
+          name: s.name,
+          expectedDeliveryDate: s.expectedDeliveryDate ? new Date(s.expectedDeliveryDate) : null,
+          order: s.order ?? i,
+        })),
+      })
+    }
+  }
 
   await audit({
     workspaceId: user.workspaceId,

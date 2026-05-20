@@ -65,20 +65,24 @@ export async function listBuildings({ workspaceId, filters }: ListBuildingsArgs)
         by: ['buildingId', 'status'],
         where: { buildingId: { in: buildingIds } },
         _count: { _all: true },
+        _sum: { currentPrice: true },
       })
     : []
 
-  // buildingId -> { DISPONIBLE: x, VENDIDA: x, ... }
-  const statsByBuilding = new Map<string, Record<string, number>>()
+  // buildingId -> { STATUS -> { count, value } }
+  const statsByBuilding = new Map<string, Record<string, { count: number; value: number }>>()
   for (const row of statusBreakdown) {
     const id = row.buildingId
     if (!statsByBuilding.has(id)) statsByBuilding.set(id, {})
-    statsByBuilding.get(id)![row.status] = row._count._all
+    statsByBuilding.get(id)![row.status] = {
+      count: row._count._all,
+      value: row._sum.currentPrice ?? 0,
+    }
   }
 
   const items = buildings.map((b) => {
     const stats = statsByBuilding.get(b.id) ?? {}
-    const sold = (stats.VENDIDA ?? 0) + (stats.ENTREGADA ?? 0)
+    const get = (s: string) => stats[s] ?? { count: 0, value: 0 }
     return {
       id: b.id,
       name: b.name,
@@ -86,12 +90,20 @@ export async function listBuildings({ workspaceId, filters }: ListBuildingsArgs)
       numberOfFloors: b.numberOfFloors,
       unitsPerFloor: b.unitsPerFloor,
       status: b.status,
+      constructionStage: b.constructionStage,
+      expectedDeliveryDate: b.expectedDeliveryDate,
       image: b.image,
       totalUnits: b._count.units,
-      availableUnits: stats.DISPONIBLE ?? 0,
-      reservedUnits: stats.RESERVADA ?? 0,
-      blockedUnits: stats.BLOQUEADA ?? 0,
-      soldUnits: sold,
+      availableUnits: get('DISPONIBLE').count,
+      availableValue: get('DISPONIBLE').value,
+      blockedUnits: get('BLOQUEADA').count,
+      blockedValue: get('BLOQUEADA').value,
+      reservedUnits: get('RESERVADA').count,
+      reservedValue: get('RESERVADA').value,
+      soldUnits: get('VENDIDA').count,
+      soldValue: get('VENDIDA').value,
+      deliveredUnits: get('ENTREGADA').count,
+      deliveredValue: get('ENTREGADA').value,
     }
   })
 
@@ -121,6 +133,9 @@ export async function getBuildingFloorMap(buildingId: string, workspaceId: strin
       unitNumber: true,
       floor: true,
       type: true,
+      bedrooms: true,
+      bathrooms: true,
+      squareMeters: true,
       status: true,
       basePrice: true,
       currentPrice: true,

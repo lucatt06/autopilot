@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Building2, Calendar, Check, ChevronLeft, MapPin, Ruler } from 'lucide-react'
+import { Building2, Calendar, Check, ChevronLeft, Flag, MapPin, Ruler } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -133,35 +133,82 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         <CardHeader>
           <CardTitle className="text-base">Detalles adicionales</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2">
-          <Field label="Dirección" value={project.address ?? '—'} />
-          <Field
-            label="Inicio de obra"
-            value={
-              project.startDate ? (
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  {formatDate(project.startDate)}
-                </span>
+        <CardContent className="space-y-4 text-sm">
+          <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-2">
+            <Field label="Dirección" value={project.address ?? '—'} />
+            <Field
+              label="Inicio de obra"
+              value={
+                project.startDate ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    {formatDate(project.startDate)}
+                  </span>
+                ) : (
+                  '—'
+                )
+              }
+            />
+            <Field
+              label="Entrega proyectada"
+              value={
+                project.expectedDeliveryDate ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    {formatDate(project.expectedDeliveryDate)}
+                  </span>
+                ) : (
+                  '—'
+                )
+              }
+            />
+            <Field label="Creado" value={<span>{formatDate(project.createdAt)}</span>} />
+          </div>
+
+          {/* Stages */}
+          {project.hasStages && (
+            <div className="border-t pt-4">
+              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Flag className="h-3.5 w-3.5" />
+                Etapas del proyecto
+              </div>
+              {project.stages.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Sin etapas definidas.{' '}
+                  {canManage && (
+                    <Link
+                      href={`/desarrollo/proyectos/${project.id}/editar`}
+                      className="text-primary hover:underline"
+                    >
+                      Agregar etapas
+                    </Link>
+                  )}
+                </p>
               ) : (
-                '—'
-              )
-            }
-          />
-          <Field
-            label="Entrega proyectada"
-            value={
-              project.expectedDeliveryDate ? (
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  {formatDate(project.expectedDeliveryDate)}
-                </span>
-              ) : (
-                '—'
-              )
-            }
-          />
-          <Field label="Creado" value={<span>{formatDate(project.createdAt)}</span>} />
+                <div className="flex flex-wrap gap-3">
+                  {project.stages.map((stage, i) => (
+                    <div
+                      key={stage.id}
+                      className="flex items-center gap-2.5 rounded-lg border bg-muted/30 px-3 py-2"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                        {i + 1}
+                      </span>
+                      <div>
+                        <div className="text-sm font-medium">{stage.name}</div>
+                        {stage.expectedDeliveryDate && (
+                          <div className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(stage.expectedDeliveryDate)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

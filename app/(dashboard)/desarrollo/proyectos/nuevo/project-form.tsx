@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { createProject } from '@/app/actions/projects'
 import {
   PROJECT_STATUSES,
@@ -25,12 +27,31 @@ import {
 
 import { AmenitiesPicker } from '../_components/amenities-picker'
 
+interface Stage {
+  name: string
+  expectedDeliveryDate: string
+}
+
 export function ProjectForm() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [type, setType] = useState<string>('RESIDENCIAL')
   const [status, setStatus] = useState<string>('EN_PLANOS')
+  const [hasStages, setHasStages] = useState(false)
+  const [stages, setStages] = useState<Stage[]>([{ name: '', expectedDeliveryDate: '' }])
+
+  function addStage() {
+    setStages((prev) => [...prev, { name: '', expectedDeliveryDate: '' }])
+  }
+
+  function removeStage(index: number) {
+    setStages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function updateStage(index: number, field: keyof Stage, value: string) {
+    setStages((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)))
+  }
 
   function onSubmit(formData: FormData) {
     setError(null)
@@ -48,6 +69,16 @@ export function ProjectForm() {
       coverImage: String(formData.get('coverImage') ?? '').trim() || undefined,
       type,
       status,
+      hasStages,
+      stages: hasStages
+        ? stages
+            .filter((s) => s.name.trim())
+            .map((s, i) => ({
+              name: s.name.trim(),
+              expectedDeliveryDate: s.expectedDeliveryDate || undefined,
+              order: i,
+            }))
+        : [],
     }
 
     startTransition(async () => {
@@ -184,6 +215,78 @@ export function ProjectForm() {
             />
           </div>
         </div>
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-muted-foreground">Etapas</legend>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="hasStages" className="text-sm font-medium">
+              Entrega en varias etapas
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Activa esto si el proyecto se entregará en fases o etapas distintas.
+            </p>
+          </div>
+          <Switch
+            id="hasStages"
+            checked={hasStages}
+            onCheckedChange={setHasStages}
+            disabled={isPending}
+          />
+        </div>
+
+        {hasStages && (
+          <div className="space-y-3">
+            {stages.map((stage, i) => (
+              <div key={i} className="flex items-end gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                  {i + 1}
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Input
+                    placeholder="Nombre de la etapa"
+                    value={stage.name}
+                    onChange={(e) => updateStage(i, 'name', e.target.value)}
+                    disabled={isPending}
+                    maxLength={80}
+                  />
+                </div>
+                <div className="w-40 space-y-1">
+                  <Input
+                    type="date"
+                    value={stage.expectedDeliveryDate}
+                    onChange={(e) => updateStage(i, 'expectedDeliveryDate', e.target.value)}
+                    disabled={isPending}
+                  />
+                </div>
+                {stages.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeStage(i)}
+                    disabled={isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addStage}
+              disabled={isPending}
+              className="mt-1"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Agregar etapa
+            </Button>
+          </div>
+        )}
       </fieldset>
 
       <fieldset className="space-y-4">

@@ -28,6 +28,14 @@ const optionalUrl = z
   .optional()
   .or(z.literal('').transform(() => undefined))
 
+export const projectStageSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1, 'Nombre requerido').max(80),
+  expectedDeliveryDate: optionalDate,
+  order: z.coerce.number().int().default(0),
+})
+export type ProjectStageInput = z.infer<typeof projectStageSchema>
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Nombre requerido').max(120),
   type: z.enum(PROJECT_TYPES).default('RESIDENCIAL'),
@@ -43,6 +51,8 @@ export const createProjectSchema = z.object({
   progressPercent: z.coerce.number().int().min(0).max(100).default(0),
   /** URL of the main image / render */
   coverImage: optionalUrl,
+  hasStages: z.boolean().default(false),
+  stages: z.array(projectStageSchema).default([]),
 })
 
 /**

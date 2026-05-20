@@ -89,6 +89,7 @@ model Workspace {
   warranties        Warranty[]
   punchLists        PunchList[]
   savedViews        SavedView[]
+  projectStages     ProjectStage[]
 }
 
 // =====================================================================
@@ -964,6 +965,8 @@ model Project {
   // Live camera
   liveCameraUrl        String?
   liveCameraEnabled    Boolean       @default(false)
+  // Stages
+  hasStages            Boolean       @default(false)
   // Metadata
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
@@ -971,7 +974,21 @@ model Project {
 
   buildings            Building[]
   units                Unit[]
+  stages               ProjectStage[]
   paymentPlanTemplates PaymentPlanTemplate[]
+}
+
+model ProjectStage {
+  id                   String    @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace @relation(fields: [workspaceId], references: [id])
+  projectId            String
+  project              Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                 String
+  expectedDeliveryDate DateTime?
+  order                Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 }
 
 model Building {
@@ -986,6 +1003,7 @@ model Building {
   description          String?
   image                String?
   status               ProjectStatus
+  constructionStage    String?
   expectedDeliveryDate DateTime?
   // Metadata
   createdAt            DateTime      @default(now())

@@ -46,6 +46,7 @@ export function BuildingForm({
       description: String(formData.get('description') ?? '').trim() || undefined,
       image: String(formData.get('image') ?? '').trim() || undefined,
       status,
+      constructionStage: String(formData.get('constructionStage') ?? '').trim() || undefined,
       expectedDeliveryDate: String(formData.get('expectedDeliveryDate') ?? '') || undefined,
     }
 
@@ -145,6 +146,28 @@ export function BuildingForm({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="constructionStage">Etapa de construcción</Label>
+            <Input
+              id="constructionStage"
+              name="constructionStage"
+              placeholder="Ej. Etapa 1 · Fase A · Cimentación"
+              maxLength={80}
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="expectedDeliveryDateTop">Entrega proyectada</Label>
+            <Input
+              id="expectedDeliveryDateTop"
+              name="expectedDeliveryDate"
+              type="date"
+              disabled={isPending}
+            />
+          </div>
+        </div>
+
         <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           Total potencial de unidades:{' '}
           <span className="font-medium text-foreground">{previewTotal}</span> ·{' '}
@@ -164,26 +187,15 @@ export function BuildingForm({
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="expectedDeliveryDate">Entrega proyectada</Label>
-            <Input
-              id="expectedDeliveryDate"
-              name="expectedDeliveryDate"
-              type="date"
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="image">URL de imagen</Label>
-            <Input
-              id="image"
-              name="image"
-              type="url"
-              disabled={isPending}
-              placeholder="https://…"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="image">URL de imagen</Label>
+          <Input
+            id="image"
+            name="image"
+            type="url"
+            disabled={isPending}
+            placeholder="https://…"
+          />
         </div>
       </fieldset>
 

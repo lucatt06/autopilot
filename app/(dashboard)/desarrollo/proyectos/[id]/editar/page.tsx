@@ -61,6 +61,13 @@ export default async function EditProjectPage({ params }: PageProps) {
                 ? project.expectedDeliveryDate.toISOString().slice(0, 10)
                 : '',
               coverImage: project.images[0] ?? '',
+              hasStages: project.hasStages,
+              stages: project.stages.map((s) => ({
+                name: s.name,
+                expectedDeliveryDate: s.expectedDeliveryDate
+                  ? s.expectedDeliveryDate.toISOString().slice(0, 10)
+                  : '',
+              })),
             }}
           />
         </CardContent>

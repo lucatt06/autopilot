@@ -35,6 +35,7 @@ export const createBuildingSchema = z.object({
   description: optionalString,
   image: optionalUrl,
   status: z.enum(BUILDING_STATUSES).default('EN_CONSTRUCCION'),
+  constructionStage: optionalString,
   expectedDeliveryDate: optionalDate,
 })
 

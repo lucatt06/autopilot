@@ -24,9 +24,11 @@ const NONE = '__none__'
 export function BuildingsFilters({
   initial,
   projects,
+  globalProjectIds = [],
 }: {
   initial: BuildingFilters
   projects: { id: string; name: string }[]
+  globalProjectIds?: string[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -50,6 +52,9 @@ export function BuildingsFilters({
     startTransition(() => router.replace(`?${params.toString()}`))
   }
 
+  // When global sidebar has exactly 1 project selected, lock this dropdown to that project
+  const globalSingleId = globalProjectIds.length === 1 ? globalProjectIds[0] : undefined
+
   const hasFilters = !!initial.search || !!initial.projectId || !!initial.status
 
   function clearAll() {
@@ -69,22 +74,35 @@ export function BuildingsFilters({
         />
       </div>
 
-      <Select
-        value={initial.projectId ?? NONE}
-        onValueChange={(v) => update('projectId', v === NONE ? null : v)}
-      >
-        <SelectTrigger className="h-9 w-48">
-          <SelectValue placeholder="Proyecto" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>Todos los proyectos</SelectItem>
-          {projects.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {globalProjectIds.length > 1 ? (
+        // Multiple projects selected globally — show non-interactive chip
+        <div className="flex h-9 items-center rounded-md border border-primary bg-primary/5 px-3 text-sm font-medium text-primary">
+          {globalProjectIds.length} proyectos
+        </div>
+      ) : (
+        <Select
+          value={globalSingleId ?? initial.projectId ?? NONE}
+          onValueChange={(v) => {
+            if (globalProjectIds.length > 0) return // controlled by global selector
+            update('projectId', v === NONE ? null : v)
+          }}
+          disabled={!!globalSingleId}
+        >
+          <SelectTrigger
+            className={`h-9 w-48 ${globalSingleId ? 'border-primary text-primary' : ''}`}
+          >
+            <SelectValue placeholder="Proyecto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE}>Todos los proyectos</SelectItem>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Select
         value={initial.status ?? NONE}
