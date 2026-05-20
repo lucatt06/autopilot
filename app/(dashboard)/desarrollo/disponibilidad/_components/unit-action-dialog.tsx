@@ -73,11 +73,12 @@ const BLOCK_REASONS = [
 ] as const
 
 const DURATION_OPTIONS = [
-  { value: '24h', label: '24 h' },
-  { value: '48h', label: '48 h' },
-  { value: '72h', label: '72 h' },
-  { value: '1w', label: '1 semana' },
-  { value: '2w', label: '2 semanas' },
+  { value: '24h', label: '24 h', hours: 24 },
+  { value: '48h', label: '48 h', hours: 48 },
+  { value: '72h', label: '72 h', hours: 72 },
+  { value: '1w', label: '1 sem.', hours: 168 },
+  { value: '2w', label: '2 sem.', hours: 336 },
+  { value: 'custom', label: 'Personalizado', hours: 0 },
 ] as const
 
 const usd = (n: number) =>
@@ -310,6 +311,8 @@ export function UnitActionDialog({ unit, action, onClose }: Props) {
   // Block fields
   const [reason, setReason] = useState<string>('CLIENTE_EVALUANDO')
   const [duration, setDuration] = useState<string>('48h')
+  const [customValue, setCustomValue] = useState<string>('1')
+  const [customUnit, setCustomUnit] = useState<'h' | 'd'>('d')
   const [notes, setNotes] = useState('')
 
   // Reserve fields
@@ -347,11 +350,18 @@ export function UnitActionDialog({ unit, action, onClose }: Props) {
       let result
 
       if (action === 'block') {
+        let durationHours: number
+        if (duration === 'custom') {
+          const n = Math.max(1, parseInt(customValue, 10) || 1)
+          durationHours = customUnit === 'd' ? n * 24 : n
+        } else {
+          durationHours = DURATION_OPTIONS.find((d) => d.value === duration)?.hours ?? 48
+        }
         result = await createBlock({
           unitId: unit.id,
           contactId: contact?.id,
           reason: reason as never,
-          duration: duration as never,
+          durationHours,
           notes,
         })
       } else if (action === 'reserve') {
@@ -475,6 +485,42 @@ export function UnitActionDialog({ unit, action, onClose }: Props) {
                       </button>
                     ))}
                   </div>
+                  {duration === 'custom' && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={9999}
+                        value={customValue}
+                        onChange={(e) => setCustomValue(e.target.value)}
+                        className="h-8 w-24 text-sm"
+                      />
+                      <div className="flex rounded-md border overflow-hidden text-sm">
+                        <button
+                          type="button"
+                          onClick={() => setCustomUnit('h')}
+                          className={`px-3 py-1 transition-colors ${
+                            customUnit === 'h'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background hover:bg-accent'
+                          }`}
+                        >
+                          Horas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCustomUnit('d')}
+                          className={`px-3 py-1 transition-colors border-l ${
+                            customUnit === 'd'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background hover:bg-accent'
+                          }`}
+                        >
+                          Días
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -105,14 +105,6 @@ export async function createQuickContact(
 // Block
 // ─────────────────────────────────────────────
 
-const DURATION_HOURS: Record<string, number> = {
-  '24h': 24,
-  '48h': 48,
-  '72h': 72,
-  '1w': 168,
-  '2w': 336,
-}
-
 const blockSchema = z.object({
   unitId: z.string(),
   contactId: z.string().optional(),
@@ -123,7 +115,7 @@ const blockSchema = z.object({
     'NEGOCIACION_PRECIO',
     'OTRO',
   ]),
-  duration: z.enum(['24h', '48h', '72h', '1w', '2w']),
+  durationHours: z.number().int().positive(),
   notes: z.string().optional(),
 })
 
@@ -138,7 +130,7 @@ export async function createBlock(
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' }
   }
 
-  const { unitId, contactId, reason, duration, notes } = parsed.data
+  const { unitId, contactId, reason, durationHours, notes } = parsed.data
 
   const unit = await db.unit.findFirst({
     where: { id: unitId, workspaceId: user.workspaceId },
@@ -148,8 +140,7 @@ export async function createBlock(
     return { ok: false, error: 'La unidad ya no está disponible' }
   }
 
-  const hours = DURATION_HOURS[duration]!
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000)
+  const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000)
 
   const block = await db.$transaction(async (tx) => {
     const b = await tx.block.create({
