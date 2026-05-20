@@ -111,8 +111,7 @@ export function EditProjectForm({ project }: { project: InitialValues }) {
         return
       }
       toast.success('Proyecto actualizado')
-      router.push(`/desarrollo/proyectos/${project.id}`)
-      router.refresh()
+      router.back()
     })
   }
 
@@ -376,8 +375,8 @@ export function EditProjectForm({ project }: { project: InitialValues }) {
       </fieldset>
 
       <div className="flex items-center justify-end gap-2 border-t pt-4">
-        <Button asChild variant="outline" disabled={isPending}>
-          <a href={`/desarrollo/proyectos/${project.id}`}>Cancelar</a>
+        <Button type="button" variant="outline" disabled={isPending} onClick={() => router.back()}>
+          Cancelar
         </Button>
         <Button type="submit" disabled={isPending}>
           {isPending ? 'Guardando...' : 'Guardar cambios'}

@@ -60,8 +60,7 @@ export function EditBuildingForm({ initial }: { initial: InitialValues }) {
         return
       }
       toast.success('Edificio actualizado')
-      router.push(`/desarrollo/edificios/${initial.id}`)
-      router.refresh()
+      router.back()
     })
   }
 
@@ -178,8 +177,8 @@ export function EditBuildingForm({ initial }: { initial: InitialValues }) {
       </fieldset>
 
       <div className="flex items-center justify-end gap-2 border-t pt-4">
-        <Button asChild variant="outline" disabled={isPending}>
-          <a href={`/desarrollo/edificios/${initial.id}`}>Cancelar</a>
+        <Button type="button" variant="outline" disabled={isPending} onClick={() => router.back()}>
+          Cancelar
         </Button>
         <Button type="submit" disabled={isPending}>
           {isPending ? 'Guardando...' : 'Guardar cambios'}

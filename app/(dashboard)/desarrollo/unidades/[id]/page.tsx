@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Calendar, ChevronLeft } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { BackButton } from '@/components/ui/back-button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireAuth } from '@/lib/auth'
 import { getUnitById } from '@/lib/units/queries'
@@ -36,14 +37,7 @@ export default async function UnitDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="icon">
-          <Link
-            href={unit.building ? `/desarrollo/edificios/${unit.building.id}` : '/desarrollo/unidades'}
-            aria-label="Volver"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+        <BackButton />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Unidad {unit.unitNumber}</h1>

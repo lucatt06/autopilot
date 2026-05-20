@@ -79,8 +79,7 @@ export function EditUnitForm({ unit }: { unit: InitialValues }) {
         return
       }
       toast.success('Unidad actualizada')
-      router.push(`/desarrollo/unidades/${unit.id}`)
-      router.refresh()
+      router.back()
     })
   }
 
@@ -296,8 +295,8 @@ export function EditUnitForm({ unit }: { unit: InitialValues }) {
       </fieldset>
 
       <div className="flex items-center justify-end gap-2 border-t pt-4">
-        <Button asChild variant="outline" disabled={isPending}>
-          <a href={`/desarrollo/unidades/${unit.id}`}>Cancelar</a>
+        <Button type="button" variant="outline" disabled={isPending} onClick={() => router.back()}>
+          Cancelar
         </Button>
         <Button type="submit" disabled={isPending}>
           {isPending ? 'Guardando...' : 'Guardar cambios'}

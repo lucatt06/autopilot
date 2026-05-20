@@ -1,8 +1,6 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { BackButton } from '@/components/ui/back-button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireRole } from '@/lib/auth'
 import { getProjectById } from '@/lib/projects/queries'
@@ -25,11 +23,7 @@ export default async function EditProjectPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="icon">
-          <Link href={`/desarrollo/proyectos/${project.id}`} aria-label="Volver">
-            <ChevronLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+        <BackButton />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Editar: {project.name}</h1>
           <p className="text-sm text-muted-foreground">
