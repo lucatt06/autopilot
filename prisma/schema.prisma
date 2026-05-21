@@ -977,6 +977,7 @@ model Project {
   units                Unit[]
   stages               ProjectStage[]
   paymentPlanTemplates PaymentPlanTemplate[]
+  paymentPlans         PaymentPlan[]
 }
 
 model ProjectStage {
@@ -1221,27 +1222,56 @@ model PaymentPlanTemplate {
   createdAt                DateTime @default(now())
 }
 
+enum PaymentPlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model PaymentPlan {
-  id                 String    @id @default(cuid())
-  workspaceId        String
-  workspace          Workspace @relation(fields: [workspaceId], references: [id])
-  saleId             String    @unique
-  sale               Sale      @relation(fields: [saleId], references: [id])
-  templateId         String?
+  id                            String            @id @default(cuid())
+  workspaceId                   String
+  workspace                     Workspace         @relation(fields: [workspaceId], references: [id])
+  // Optional links — standalone plans have neither sale nor customer
+  saleId                        String?           @unique
+  sale                          Sale?             @relation(fields: [saleId], references: [id])
+  projectId                     String?
+  project                       Project?          @relation(fields: [projectId], references: [id])
+  customerId                    String?
+  customer                      Customer?         @relation(fields: [customerId], references: [id])
+  templateId                    String?
+  // Identity
+  name                          String
+  currency                      String            @default("USD")
+  status                        PaymentPlanStatus @default(DRAFT)
+  deliveryDate                  DateTime?
+  notes                         String?
   // Totals
-  totalPrice         Float
-  totalPaid          Float     @default(0)
-  // Sections breakdown
-  reservationAmount  Float
-  initialAmount      Float
-  constructionAmount Float
-  finalAmount        Float
+  totalPrice                    Float
+  totalPaid                     Float             @default(0)
+  // Sections breakdown (amounts) — reservation is absolute and carved out of initial
+  reservationAmount             Float             @default(0)
+  initialAmount                 Float             @default(0)
+  constructionAmount            Float             @default(0)
+  finalAmount                   Float             @default(0)
+  // Sections breakdown (percent of total price) — initial + construction + final = 100
+  initialPercent                Float             @default(0)
+  constructionPercent           Float             @default(0)
+  finalPercent                  Float             @default(0)
+  // Construction config
+  constructionInstallmentsCount Int               @default(12)
+  constructionPeriodicityMonths Int               @default(1)
+  constructionMode              String            @default("automatic") // automatic | manual
   // Metadata
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt                     DateTime          @default(now())
+  updatedAt                     DateTime          @updatedAt
 
   installments PaymentInstallment[]
   payments     Payment[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, projectId])
 }
 
 enum InstallmentType {
@@ -1254,13 +1284,17 @@ enum InstallmentType {
 model PaymentInstallment {
   id                String          @id @default(cuid())
   paymentPlanId     String
-  paymentPlan       PaymentPlan     @relation(fields: [paymentPlanId], references: [id])
+  paymentPlan       PaymentPlan     @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
   type              InstallmentType
   installmentNumber Int // 1, 2, 3 (for construction)
+  label             String?
   expectedAmount    Float
   dueDate           DateTime
   paidAmount        Float           @default(0)
+  locked            Boolean         @default(false) // manual override — excluded from auto-regeneration
   status            String          @default("pending") // pending, partial, paid, overdue
+
+  @@index([paymentPlanId])
 }
 
 enum PaymentStatus {
@@ -1468,6 +1502,7 @@ model Customer {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   Contact        Contact[]
+  paymentPlans   PaymentPlan[]
 }
 
 // =====================================================================
