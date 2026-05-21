@@ -26,6 +26,12 @@ export function addMonths(date: Date, months: number): Date {
   return d
 }
 
+/** Parse a yyyy-MM-dd string as a LOCAL date (avoids UTC off-by-one). */
+export function parseDateInput(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1)
+}
+
 /** Format a Date as a yyyy-MM-dd string for <input type="date">. */
 export function toDateInput(date: Date): string {
   const y = date.getFullYear()
