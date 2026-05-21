@@ -35,6 +35,7 @@ export const CURRENCY_LABELS: Record<CurrencyKey, string> = {
 export const INSTALLMENT_TYPES = ['RESERVATION', 'INITIAL', 'CONSTRUCTION', 'FINAL'] as const
 
 export const installmentInputSchema = z.object({
+  id: z.string().optional(), // existing installment id — preserves paidAmount on edit
   type: z.enum(INSTALLMENT_TYPES),
   installmentNumber: z.number().int().min(1),
   label: z.string().max(120).optional(),

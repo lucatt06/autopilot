@@ -44,6 +44,7 @@ type SectionType = 'RESERVATION' | 'INITIAL' | 'CONSTRUCTION' | 'FINAL'
 
 interface Row {
   key: string
+  id: string | null // existing installment id (null for new rows) — preserves paidAmount
   dueDate: string
   expectedAmount: number
   label: string | null
@@ -59,6 +60,7 @@ interface ProjectOpt {
 }
 
 interface InitialInstallment {
+  id: string
   type: string
   installmentNumber: number
   label: string | null
@@ -121,6 +123,7 @@ function rowsFromInstallments(installments: InitialInstallment[], type: SectionT
     .sort((a, b) => a.installmentNumber - b.installmentNumber)
     .map((i) => ({
       key: newKey(),
+      id: i.id,
       dueDate: i.dueDate ? i.dueDate.slice(0, 10) : todayInput(),
       expectedAmount: i.expectedAmount,
       label: i.label,
@@ -243,7 +246,7 @@ function PaymentRows({
   function add() {
     onChange([
       ...rows,
-      { key: newKey(), dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
+      { key: newKey(), id: null, dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
     ])
   }
 
@@ -364,12 +367,12 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
   // Section rows
   const [reservationRows, setReservationRows] = useState<Row[]>(() =>
     initial ? rowsFromInstallments(initial.installments, 'RESERVATION') : [
-      { key: newKey(), dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
+      { key: newKey(), id: null, dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
     ],
   )
   const [initialRows, setInitialRows] = useState<Row[]>(() =>
     initial ? rowsFromInstallments(initial.installments, 'INITIAL') : [
-      { key: newKey(), dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
+      { key: newKey(), id: null, dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
     ],
   )
   const [constructionRows, setConstructionRows] = useState<Row[]>(() =>
@@ -377,7 +380,7 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
   )
   const [finalRows, setFinalRows] = useState<Row[]>(() =>
     initial ? rowsFromInstallments(initial.installments, 'FINAL') : [
-      { key: newKey(), dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
+      { key: newKey(), id: null, dueDate: todayInput(), expectedAmount: 0, label: null, locked: false, paidAmount: 0, status: 'pending' },
     ],
   )
 
@@ -413,6 +416,7 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
     // Keep locked rows as-is; fill the remaining slots from the generated split.
     const rows: Row[] = generated.map((g) => ({
       key: newKey(),
+      id: null,
       dueDate: g.dueDate,
       expectedAmount: g.expectedAmount,
       label: null,
@@ -442,6 +446,7 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
     setConstructionRows(
       generated.map((g) => ({
         key: newKey(),
+        id: null,
         dueDate: g.dueDate,
         expectedAmount: g.expectedAmount,
         label: null,
@@ -466,6 +471,7 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
       ...rows,
       {
         key: newKey(),
+        id: null,
         dueDate: toDateInput(addMonths(parseDateInput(constructionStart), rows.length * periodicity)),
         expectedAmount: 0,
         label: null,
@@ -479,7 +485,7 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
   // ─── Submit ─────────────────────────────────────────────────────────────────────
 
   function buildInstallments() {
-    const out: { type: SectionType; installmentNumber: number; expectedAmount: number; dueDate: string; locked: boolean; label?: string }[] = []
+    const out: { id?: string; type: SectionType; installmentNumber: number; expectedAmount: number; dueDate: string; locked: boolean; label?: string }[] = []
     const push = (rows: Row[], type: SectionType) =>
       rows.forEach((r, idx) =>
         out.push({
@@ -488,6 +494,7 @@ export function PaymentPlanForm({ mode, projects, initial }: Props) {
           expectedAmount: round2(r.expectedAmount),
           dueDate: r.dueDate,
           locked: r.locked,
+          ...(r.id ? { id: r.id } : {}),
           ...(r.label ? { label: r.label } : {}),
         }),
       )

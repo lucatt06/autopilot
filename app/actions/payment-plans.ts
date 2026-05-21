@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 
 import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth'
-import { computeSectionAmounts, sumPaid } from '@/lib/payment-plans/calc'
+import { audit } from '@/lib/audit'
+import { computeSectionAmounts, reconcileInstallments, sumPaid } from '@/lib/payment-plans/calc'
 import {
   createPaymentPlanSchema,
   updatePaymentPlanSchema,
@@ -42,6 +43,10 @@ export async function createPaymentPlan(
   if (d.customerId) {
     const customer = await db.customer.findFirst({ where: { id: d.customerId, workspaceId: user.workspaceId } })
     if (!customer) return { ok: false, error: 'Cliente no encontrado' }
+  }
+  if (d.saleId) {
+    const sale = await db.sale.findFirst({ where: { id: d.saleId, workspaceId: user.workspaceId } })
+    if (!sale) return { ok: false, error: 'Venta no encontrada' }
   }
 
   const sections = computeSectionAmounts(d)
@@ -83,6 +88,15 @@ export async function createPaymentPlan(
     select: { id: true },
   })
 
+  await audit({
+    workspaceId: user.workspaceId,
+    userId: user.id,
+    action: 'create',
+    entityType: 'PaymentPlan',
+    entityId: plan.id,
+    changes: { name: d.name, totalPrice: d.totalPrice, status: d.status },
+  })
+
   revalidatePath('/desarrollo/planes-pago')
   return { ok: true, data: { id: plan.id } }
 }
@@ -116,26 +130,29 @@ export async function updatePaymentPlan(
     const customer = await db.customer.findFirst({ where: { id: d.customerId, workspaceId: user.workspaceId } })
     if (!customer) return { ok: false, error: 'Cliente no encontrado' }
   }
+  if (d.saleId) {
+    const sale = await db.sale.findFirst({ where: { id: d.saleId, workspaceId: user.workspaceId } })
+    if (!sale) return { ok: false, error: 'Venta no encontrada' }
+  }
 
   const sections = computeSectionAmounts(d)
 
   // Preserve real payment progress (paidAmount/status) recorded via Cobros by
-  // matching installments on type + installmentNumber across the rebuild.
-  const prevByKey = new Map(existing.installments.map((i) => [`${i.type}:${i.installmentNumber}`, i]))
-  const nextInstallments = d.installments.map((i) => {
-    const prev = prevByKey.get(`${i.type}:${i.installmentNumber}`)
-    const paidAmount = prev?.paidAmount ?? 0
-    return {
+  // matching installments on STABLE id — never positional installmentNumber,
+  // which is reassigned/reordered on every save (would corrupt financial data).
+  const reconciled = reconcileInstallments(
+    d.installments.map((i) => ({
+      id: i.id,
       type: i.type,
       installmentNumber: i.installmentNumber,
       label: i.label || null,
       expectedAmount: i.expectedAmount,
       dueDate: toDate(i.dueDate) ?? new Date(),
       locked: i.locked,
-      paidAmount,
-      status: paidAmount >= i.expectedAmount && paidAmount > 0 ? 'paid' : paidAmount > 0 ? 'partial' : 'pending',
-    }
-  })
+    })),
+    existing.installments.map((i) => ({ id: i.id, paidAmount: i.paidAmount })),
+  )
+  const nextInstallments = reconciled.map(({ id: _id, ...rest }) => rest)
   const totalPaid = sumPaid(nextInstallments)
 
   await db.$transaction(async (tx) => {
@@ -168,6 +185,15 @@ export async function updatePaymentPlan(
     })
   })
 
+  await audit({
+    workspaceId: user.workspaceId,
+    userId: user.id,
+    action: 'update',
+    entityType: 'PaymentPlan',
+    entityId: id,
+    changes: { name: d.name, totalPrice: d.totalPrice, status: d.status },
+  })
+
   revalidatePath('/desarrollo/planes-pago')
   revalidatePath(`/desarrollo/planes-pago/${id}/editar`)
   return { ok: true, data: { id } }
@@ -190,6 +216,15 @@ export async function deletePaymentPlan(id: string): Promise<ActionResult> {
   await db.$transaction(async (tx) => {
     await tx.paymentInstallment.deleteMany({ where: { paymentPlanId: id } })
     await tx.paymentPlan.delete({ where: { id } })
+  })
+
+  await audit({
+    workspaceId: user.workspaceId,
+    userId: user.id,
+    action: 'delete',
+    entityType: 'PaymentPlan',
+    entityId: id,
+    changes: { name: existing.name },
   })
 
   revalidatePath('/desarrollo/planes-pago')

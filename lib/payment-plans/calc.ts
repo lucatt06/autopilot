@@ -117,6 +117,30 @@ export function sumPaid(rows: { paidAmount?: number }[]): number {
   return round2(rows.reduce((acc, r) => acc + (Number(r.paidAmount) || 0), 0))
 }
 
+/** Derive an installment status from its paid vs expected amounts. */
+export function installmentStatus(paidAmount: number, expectedAmount: number): string {
+  if (paidAmount <= 0) return 'pending'
+  if (paidAmount >= expectedAmount) return 'paid'
+  return 'partial'
+}
+
+/**
+ * Carry over real payment progress (paidAmount/status) from the previously
+ * persisted installments onto a rebuilt set, matching by STABLE id — never by
+ * positional installmentNumber, which is reassigned and reordered on every save.
+ * New rows (no id, or an id absent from prev) start at paidAmount 0. Pure.
+ */
+export function reconcileInstallments<N extends { id?: string | null; expectedAmount: number }>(
+  next: N[],
+  prev: { id: string; paidAmount: number }[],
+): (N & { paidAmount: number; status: string })[] {
+  const prevById = new Map(prev.map((p) => [p.id, p.paidAmount]))
+  return next.map((n) => {
+    const paid = n.id ? round2(prevById.get(n.id) ?? 0) : 0
+    return { ...n, paidAmount: paid, status: installmentStatus(paid, n.expectedAmount) }
+  })
+}
+
 /**
  * Apply a real payment amount across a section's installments in due-date order,
  * fully covering each before spilling the remainder into the next (Cobros flow).

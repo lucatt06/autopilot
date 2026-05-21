@@ -69,6 +69,7 @@ export default async function EditarPlanPage({ params }: PageProps) {
               constructionPeriodicityMonths: plan.constructionPeriodicityMonths,
               constructionMode: plan.constructionMode,
               installments: plan.installments.map((i) => ({
+                id: i.id,
                 type: i.type,
                 installmentNumber: i.installmentNumber,
                 label: i.label,

@@ -1294,6 +1294,7 @@ model PaymentInstallment {
   locked            Boolean         @default(false) // manual override — excluded from auto-regeneration
   status            String          @default("pending") // pending, partial, paid, overdue
 
+  @@unique([paymentPlanId, type, installmentNumber])
   @@index([paymentPlanId])
 }
 
