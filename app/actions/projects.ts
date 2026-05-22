@@ -50,6 +50,10 @@ export async function createProject(
       expectedDeliveryDate: data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : null,
       images: data.coverImage ? [data.coverImage] : [],
       hasStages: data.hasStages,
+      stdReservationAmount: data.stdReservationAmount ?? null,
+      stdInitialPercent: data.stdInitialPercent ?? null,
+      stdConstructionPercent: data.stdConstructionPercent ?? null,
+      stdFinalPercent: data.stdFinalPercent ?? null,
       ...(data.hasStages && data.stages.length > 0 && {
         stages: {
           create: data.stages.map((s, i) => ({

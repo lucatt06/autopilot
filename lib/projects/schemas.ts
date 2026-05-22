@@ -53,6 +53,10 @@ export const createProjectSchema = z.object({
   coverImage: optionalUrl,
   hasStages: z.boolean().default(false),
   stages: z.array(projectStageSchema).default([]),
+  stdReservationAmount: z.coerce.number().min(0).optional(),
+  stdInitialPercent: z.coerce.number().min(0).max(100).optional(),
+  stdConstructionPercent: z.coerce.number().min(0).max(100).optional(),
+  stdFinalPercent: z.coerce.number().min(0).max(100).optional(),
 })
 
 /**

@@ -55,6 +55,7 @@ export const createPaymentPlanSchema = z
     projectId: z.string().optional(),
     customerId: z.string().optional(),
     saleId: z.string().optional(),
+    unitId: z.string().cuid().optional(),
     currency: z.enum(CURRENCIES).default('USD'),
     status: z.enum(PLAN_STATUSES).default('DRAFT'),
     deliveryDate: z.string().optional(),

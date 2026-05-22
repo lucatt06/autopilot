@@ -41,6 +41,7 @@ export async function listPaymentPlans(workspaceId: string, filters: PlanFilters
       orderBy: { updatedAt: 'desc' },
       include: {
         project: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
     }),
     db.paymentPlan.count({ where }),
@@ -64,7 +65,15 @@ export async function getPaymentPlanById(id: string, workspaceId: string) {
 export async function getProjectsForSelect(workspaceId: string) {
   return db.project.findMany({
     where: { workspaceId, deletedAt: null },
-    select: { id: true, name: true, expectedDeliveryDate: true },
+    select: {
+      id: true,
+      name: true,
+      expectedDeliveryDate: true,
+      stdReservationAmount: true,
+      stdInitialPercent: true,
+      stdConstructionPercent: true,
+      stdFinalPercent: true,
+    },
     orderBy: { name: 'asc' },
   })
 }

@@ -48,6 +48,10 @@ export default async function EditarPlanPage({ params }: PageProps) {
               id: p.id,
               name: p.name,
               expectedDeliveryDate: p.expectedDeliveryDate ? p.expectedDeliveryDate.toISOString().slice(0, 10) : null,
+              stdReservationAmount: p.stdReservationAmount,
+              stdInitialPercent: p.stdInitialPercent,
+              stdConstructionPercent: p.stdConstructionPercent,
+              stdFinalPercent: p.stdFinalPercent,
             }))}
             initial={{
               id: plan.id,
@@ -55,6 +59,7 @@ export default async function EditarPlanPage({ params }: PageProps) {
               projectId: plan.projectId,
               customerId: plan.customerId,
               customerName,
+              unitId: plan.unitId,
               saleId: plan.saleId,
               currency: plan.currency,
               status: plan.status,

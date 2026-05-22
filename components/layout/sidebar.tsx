@@ -20,7 +20,7 @@ export function Sidebar({ sections, title, basePath, headerExtra }: SidebarProps
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 shrink-0 border-r bg-muted/20">
+    <aside className="w-64 shrink-0 overflow-y-auto border-r bg-muted/20">
       {(title || headerExtra) && (
         <div className="space-y-3 border-b px-4 py-4">
           {title && (

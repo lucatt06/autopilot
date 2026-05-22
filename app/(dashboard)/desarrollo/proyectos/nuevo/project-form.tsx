@@ -70,6 +70,10 @@ export function ProjectForm() {
       type,
       status,
       hasStages,
+      stdReservationAmount: formData.get('stdReservationAmount') ? Number(formData.get('stdReservationAmount')) : undefined,
+      stdInitialPercent: formData.get('stdInitialPercent') ? Number(formData.get('stdInitialPercent')) : undefined,
+      stdConstructionPercent: formData.get('stdConstructionPercent') ? Number(formData.get('stdConstructionPercent')) : undefined,
+      stdFinalPercent: formData.get('stdFinalPercent') ? Number(formData.get('stdFinalPercent')) : undefined,
       stages: hasStages
         ? stages
             .filter((s) => s.name.trim())
@@ -287,6 +291,67 @@ export function ProjectForm() {
             </Button>
           </div>
         )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-muted-foreground">Plan de Pago Estándar</legend>
+        <p className="text-xs text-muted-foreground">
+          Define los valores por defecto para planes de pago asociados a este proyecto.
+          Se pueden modificar individualmente en cada plan.
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="stdReservationAmount">Reserva estándar ($)</Label>
+            <Input
+              id="stdReservationAmount"
+              name="stdReservationAmount"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0"
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="stdInitialPercent">% Separación / Inicial</Label>
+            <Input
+              id="stdInitialPercent"
+              name="stdInitialPercent"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="20"
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="stdConstructionPercent">% Durante construcción</Label>
+            <Input
+              id="stdConstructionPercent"
+              name="stdConstructionPercent"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="40"
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="stdFinalPercent">% Contra entrega</Label>
+            <Input
+              id="stdFinalPercent"
+              name="stdFinalPercent"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="40"
+              disabled={isPending}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Los tres porcentajes (Separación + Construcción + Entrega) deben sumar 100%.
+        </p>
       </fieldset>
 
       <fieldset className="space-y-4">

@@ -5,7 +5,9 @@ import {
   applyPaymentToInstallments,
   computeSectionAmounts,
   generateConstructionInstallments,
+  installmentCountForWindow,
   installmentStatus,
+  monthsBetween,
   parseDateInput,
   reconcileInstallments,
   round2,
@@ -39,6 +41,53 @@ describe('addMonths', () => {
     expect(toDateInput(addMonths(parseDateInput('2026-01-20'), 1))).toBe('2026-02-20')
     expect(toDateInput(addMonths(parseDateInput('2026-12-20'), 1))).toBe('2027-01-20')
     expect(toDateInput(addMonths(parseDateInput('2026-06-20'), 6))).toBe('2026-12-20')
+  })
+})
+
+describe('monthsBetween', () => {
+  it('counts whole months and ignores a partial trailing month', () => {
+    expect(monthsBetween(parseDateInput('2026-07-20'), parseDateInput('2027-06-30'))).toBe(11)
+    expect(monthsBetween(parseDateInput('2026-01-15'), parseDateInput('2026-07-15'))).toBe(6)
+    expect(monthsBetween(parseDateInput('2026-01-15'), parseDateInput('2026-07-14'))).toBe(5) // partial month
+  })
+
+  it('returns 0 when end precedes start', () => {
+    expect(monthsBetween(parseDateInput('2027-01-01'), parseDateInput('2026-01-01'))).toBe(0)
+  })
+})
+
+describe('installmentCountForWindow (cuotas reflect periodicity)', () => {
+  const startDate = parseDateInput('2026-07-20')
+  const endDate = parseDateInput('2027-06-30') // 11-month span
+
+  it('mensual (1) over an 11-month span yields 12 cuotas', () => {
+    expect(installmentCountForWindow({ startDate, endDate, periodicityMonths: 1 })).toBe(12)
+  })
+
+  it('bimestral (2) halves the count', () => {
+    expect(installmentCountForWindow({ startDate, endDate, periodicityMonths: 2 })).toBe(6)
+  })
+
+  it('trimestral (3) further reduces the count', () => {
+    expect(installmentCountForWindow({ startDate, endDate, periodicityMonths: 3 })).toBe(4)
+  })
+
+  it('always counts the first cuota even with no span', () => {
+    expect(installmentCountForWindow({ startDate, endDate: startDate, periodicityMonths: 1 })).toBe(1)
+  })
+
+  it('minGapDays drops cuotas that would fall within N days of delivery', () => {
+    // Without the gap: 12 cuotas, last on 2027-06-20 (10 days before 2027-06-30).
+    // With a 30-day gap the cutoff is 2027-05-31, so only 11 cuotas fit
+    // (last on 2027-05-20, 41 days before delivery).
+    expect(installmentCountForWindow({ startDate, endDate, periodicityMonths: 1 })).toBe(12)
+    expect(installmentCountForWindow({ startDate, endDate, periodicityMonths: 1, minGapDays: 30 })).toBe(11)
+  })
+
+  it('never returns less than 1 even when the gap swallows the whole window', () => {
+    expect(
+      installmentCountForWindow({ startDate, endDate: parseDateInput('2026-08-01'), periodicityMonths: 1, minGapDays: 30 }),
+    ).toBe(1)
   })
 })
 

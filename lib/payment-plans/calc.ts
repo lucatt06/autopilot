@@ -26,6 +26,44 @@ export function addMonths(date: Date, months: number): Date {
   return d
 }
 
+/** Add a number of days to a date, returning a new Date. */
+export function addDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+/**
+ * Whole months between two dates (end - start), not counting a partial trailing
+ * month. Returns 0 when end precedes start. Used to size the construction window.
+ */
+export function monthsBetween(start: Date, end: Date): number {
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+  if (end.getDate() < start.getDate()) months -= 1
+  return Math.max(0, months)
+}
+
+/**
+ * Number of construction installments that fit between the first cuota date and
+ * the delivery date at a given periodicity (months). The first cuota always
+ * counts, so the result is at least 1.
+ *
+ * `minGapDays` enforces a minimum separation between the LAST installment and the
+ * delivery date: the effective end is pulled back that many days so the last cuota
+ * never lands inside the final stretch before delivery. Pure.
+ */
+export function installmentCountForWindow(input: {
+  startDate: Date
+  endDate: Date
+  periodicityMonths: number
+  minGapDays?: number
+}): number {
+  const per = Math.max(1, Math.floor(input.periodicityMonths))
+  const cutoff = input.minGapDays ? addDays(input.endDate, -input.minGapDays) : input.endDate
+  const span = monthsBetween(input.startDate, cutoff)
+  return Math.max(1, Math.floor(span / per) + 1)
+}
+
 /** Parse a yyyy-MM-dd string as a LOCAL date (avoids UTC off-by-one). */
 export function parseDateInput(s: string): Date {
   const [y, m, d] = s.split('-').map(Number)

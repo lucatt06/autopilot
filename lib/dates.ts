@@ -15,6 +15,13 @@ export function formatDate(date: Date | string, timezone = 'America/Santo_Doming
 }
 
 /**
+ * Spanish long date, e.g. "30 de junio de 2028".
+ */
+export function formatDateLong(date: Date | string, timezone = 'America/Santo_Domingo'): string {
+  return formatInTimeZone(new Date(date), timezone, "d 'de' MMMM 'de' yyyy", { locale: es })
+}
+
+/**
  * Relative time like "21 hours ago" / "2 days ago" / "ahora".
  */
 export function formatRelative(date: Date | string): string {

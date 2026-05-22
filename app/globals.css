@@ -57,3 +57,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide native scrollbar — used by funnel column card areas (custom scrollbar renders instead) */
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

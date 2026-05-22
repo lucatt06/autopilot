@@ -85,7 +85,7 @@ export default async function AvailabilityPage({ searchParams }: PageProps) {
           </span>
         </div>
         {!isPub && (
-          <AvailabilityActions canManage={canManage} exportItems={exportItems} />
+          <AvailabilityActions canManage={canManage} exportItems={exportItems} workspaceId={user.workspaceId} />
         )}
       </div>
 

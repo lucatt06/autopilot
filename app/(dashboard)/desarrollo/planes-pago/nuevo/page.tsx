@@ -3,17 +3,26 @@ import { notFound } from 'next/navigation'
 import { BackButton } from '@/components/ui/back-button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireRole } from '@/lib/auth'
+import { parseProjectIdsFromParam } from '@/lib/projects/filter-utils'
 import { getProjectsForSelect } from '@/lib/payment-plans/queries'
 
 import { PaymentPlanForm } from '../_components/payment-plan-form'
 
 export const metadata = { title: 'Nuevo Plan de Pago · Autopilot' }
 
-export default async function NuevoPlanPage() {
+interface PageProps {
+  searchParams: Record<string, string | string[] | undefined>
+}
+
+export default async function NuevoPlanPage({ searchParams }: PageProps) {
   const user = await requireRole('SUPER_ADMIN', 'ADMIN')
   if (!user.workspaceId) return notFound()
 
   const projects = await getProjectsForSelect(user.workspaceId)
+
+  // Inherit the globally-selected project from the DI module selector
+  const globalProjectIds = parseProjectIdsFromParam(searchParams.projects)
+  const defaultProjectId = globalProjectIds[0] ?? null
 
   return (
     <div className="space-y-6">
@@ -36,7 +45,12 @@ export default async function NuevoPlanPage() {
               id: p.id,
               name: p.name,
               expectedDeliveryDate: p.expectedDeliveryDate ? p.expectedDeliveryDate.toISOString().slice(0, 10) : null,
+              stdReservationAmount: p.stdReservationAmount,
+              stdInitialPercent: p.stdInitialPercent,
+              stdConstructionPercent: p.stdConstructionPercent,
+              stdFinalPercent: p.stdFinalPercent,
             }))}
+            defaultProjectId={defaultProjectId}
           />
         </CardContent>
       </Card>

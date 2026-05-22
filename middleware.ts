@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   '/reset-password',
   '/auth/callback',
   '/auth/confirm',
+  '/p', // public shared views (payment plans, etc.)
 ]
 
 const isPublicPath = (pathname: string) =>

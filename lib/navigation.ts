@@ -159,6 +159,7 @@ export const REAL_ESTATE_NAV: NavSection[] = [
       { label: 'Edificios', href: '/desarrollo/edificios', icon: 'Building2' },
       { label: 'Unidades', href: '/desarrollo/unidades', icon: 'Home' },
       { label: 'Disponibilidad', href: '/desarrollo/disponibilidad', icon: 'MapPin' },
+      { label: 'Embudos', href: '/desarrollo/embudos', icon: 'Filter' },
       { label: 'Planes de Pago', href: '/desarrollo/planes-pago', icon: 'CreditCard' },
       { label: 'Bloqueos', href: '/desarrollo/bloqueos', icon: 'KeyRound' },
       { label: 'Reservas', href: '/desarrollo/reservas', icon: 'ListChecks' },

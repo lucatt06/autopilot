@@ -1,5 +1,6 @@
 import { AppSwitcher } from '@/components/layout/app-switcher'
 import { UserMenu } from '@/components/layout/user-menu'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 import { getVisibleModules } from '@/lib/navigation'
 import type { SessionUser } from '@/lib/auth'
 
@@ -28,6 +29,7 @@ export function WelcomeBar({ user }: WelcomeBarProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <NotificationBell userId={user.id} />
           <UserMenu
             firstName={user.firstName}
             lastName={user.lastName}

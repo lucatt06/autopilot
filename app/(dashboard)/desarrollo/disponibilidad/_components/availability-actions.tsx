@@ -44,9 +44,10 @@ export type ExportItem = {
 interface Props {
   canManage:   boolean
   exportItems: ExportItem[]
+  workspaceId: string
 }
 
-export function AvailabilityActions({ canManage, exportItems }: Props) {
+export function AvailabilityActions({ canManage, exportItems, workspaceId }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
@@ -64,15 +65,20 @@ export function AvailabilityActions({ canManage, exportItems }: Props) {
     startTransition(() => router.replace(`?${params.toString()}`))
   }
 
+  function buildPublicUrl(): string {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('workspace', workspaceId)
+    params.delete('pub')
+    return `${window.location.origin}/p/disponibilidad?${params.toString()}`
+  }
+
   function copyPublicLink() {
-    navigator.clipboard.writeText(window.location.href)
+    navigator.clipboard.writeText(buildPublicUrl())
     toast.success('Enlace copiado al portapapeles')
   }
 
   function openPublicView() {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('pub', '1')
-    window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
+    window.open(buildPublicUrl(), '_blank')
   }
 
   function exportExcel() {

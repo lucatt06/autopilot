@@ -89,8 +89,11 @@ model Workspace {
   deliveryActs      DeliveryAct[]
   warranties        Warranty[]
   punchLists        PunchList[]
-  savedViews        SavedView[]
-  projectStages     ProjectStage[]
+  savedViews           SavedView[]
+  projectStages        ProjectStage[]
+  mentions             Mention[]
+  paymentPlanVersions  PaymentPlanVersion[]
+  funnelStageOverrides FunnelStageOverride[]
 }
 
 // =====================================================================
@@ -143,10 +146,12 @@ model User {
   deletedAt                 DateTime?
 
   // Relations
-  ownedContacts      Contact[]            @relation("ContactOwner")
-  createdContacts    Contact[]            @relation("ContactCreator")
-  assignedTasks      Task[]               @relation("TaskAssignee")
-  createdTasks       Task[]               @relation("TaskCreator")
+  ownedContacts       Contact[]            @relation("ContactOwner")
+  createdContacts     Contact[]            @relation("ContactCreator")
+  assignedTasks       Task[]               @relation("TaskAssignee")
+  createdTasks        Task[]               @relation("TaskCreator")
+  createdPaymentPlans PaymentPlan[]        @relation("PaymentPlanCreator")
+  paymentPlanVersions PaymentPlanVersion[] @relation("PaymentPlanVersionAuthor")
   appointments       Appointment[]
   notifications      Notification[]
   auditLogs          AuditLog[]
@@ -154,6 +159,8 @@ model User {
   messages           Message[]
   UserFollowsContact UserFollowsContact[]
   savedViews         SavedView[]
+  mentionsReceived   Mention[]            @relation("MentionTarget")
+  mentionsAuthored   Mention[]            @relation("MentionAuthor")
 }
 
 // =====================================================================
@@ -899,6 +906,35 @@ model Notification {
   entityId    String?
   // Metadata
   createdAt   DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([workspaceId, userId, createdAt])
+}
+
+/// A single @-mention of a user inside any saved text field (notes, comments…).
+/// Source of truth for "who was tagged where"; a Notification is generated per
+/// newly-created Mention. Mentions are stored inline in the text as the markup
+/// `@[Full Name](userId)`, so the underlying String columns need no migration.
+model Mention {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+  // Who was mentioned
+  mentionedUserId String
+  mentionedUser   User      @relation("MentionTarget", fields: [mentionedUserId], references: [id])
+  // Who wrote the mention
+  authorId        String
+  author          User      @relation("MentionAuthor", fields: [authorId], references: [id])
+  // Where it lives + how to navigate there
+  entityType      String // "payment_plan", "contact_note", …
+  entityId        String
+  link            String
+  excerpt         String?   @db.Text
+  // Metadata
+  createdAt       DateTime  @default(now())
+
+  @@index([workspaceId, mentionedUserId])
+  @@index([entityType, entityId])
 }
 
 // =====================================================================
@@ -942,36 +978,41 @@ enum ProjectType {
 }
 
 model Project {
-  id                   String        @id @default(cuid())
-  workspaceId          String
-  workspace            Workspace     @relation(fields: [workspaceId], references: [id])
-  name                 String
-  type                 ProjectType
-  location             String?
-  address              String?
+  id                     String        @id @default(cuid())
+  workspaceId            String
+  workspace              Workspace     @relation(fields: [workspaceId], references: [id])
+  name                   String
+  type                   ProjectType
+  location               String?
+  address                String?
   // Geographic detail (Doc 1 §8.2 — supports province / city / sector breakdown)
-  province             String?
-  city                 String?
-  sector               String?
+  province               String?
+  city                   String?
+  sector                 String?
   // Amenities / "Características" — free-form catalog per workspace
-  amenities            String[]      @default([])
+  amenities              String[]      @default([])
   // Media
-  images               String[] // URLs
-  documents            Json? // [{name, url, type}, ...]
+  images                 String[] // URLs
+  documents              Json? // [{name, url, type}, ...]
   // Status
-  status               ProjectStatus @default(EN_PLANOS)
-  startDate            DateTime?
-  expectedDeliveryDate DateTime?
-  progressPercent      Int           @default(0)
+  status                 ProjectStatus @default(EN_PLANOS)
+  startDate              DateTime?
+  expectedDeliveryDate   DateTime?
+  progressPercent        Int           @default(0)
   // Live camera
-  liveCameraUrl        String?
-  liveCameraEnabled    Boolean       @default(false)
+  liveCameraUrl          String?
+  liveCameraEnabled      Boolean       @default(false)
+  // Standard payment plan template for this project
+  stdReservationAmount   Float? // absolute amount (e.g. 3000)
+  stdInitialPercent      Float? // % firma de contrato / separación (e.g. 20)
+  stdConstructionPercent Float? // % durante construcción (e.g. 40)
+  stdFinalPercent        Float? // % contra entrega (e.g. 40)
   // Stages
-  hasStages            Boolean       @default(false)
+  hasStages              Boolean       @default(false)
   // Metadata
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  deletedAt            DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  deletedAt              DateTime?
 
   buildings            Building[]
   units                Unit[]
@@ -1070,6 +1111,30 @@ model Unit {
   sales        Sale[]
   punchLists   PunchList[]
   warranties   Warranty[]
+  paymentPlans PaymentPlan[]
+  funnelStageOverrides FunnelStageOverride[]
+}
+
+// =====================================================================
+// 14b. FUNNELS (Embudos) — manual stage override per unit per funnel
+// =====================================================================
+// A funnel (e.g. "posventa") places each unit in a stage. By default the stage
+// is derived from the unit's real state; a row here is written only when a user
+// drags a card to override that stage manually. One row per (funnel, unit).
+model FunnelStageOverride {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  funnelKey   String // 'posventa'
+  unitId      String
+  unit        Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  stage       String // stage key within the funnel
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([funnelKey, unitId])
+  @@index([workspaceId, funnelKey])
 }
 
 // =====================================================================
@@ -1240,6 +1305,8 @@ model PaymentPlan {
   project                       Project?          @relation(fields: [projectId], references: [id])
   customerId                    String?
   customer                      Customer?         @relation(fields: [customerId], references: [id])
+  unitId                        String?
+  unit                          Unit?             @relation(fields: [unitId], references: [id])
   templateId                    String?
   // Identity
   name                          String
@@ -1264,14 +1331,36 @@ model PaymentPlan {
   constructionPeriodicityMonths Int               @default(1)
   constructionMode              String            @default("automatic") // automatic | manual
   // Metadata
+  createdById                   String?
+  createdBy                     User?             @relation("PaymentPlanCreator", fields: [createdById], references: [id])
   createdAt                     DateTime          @default(now())
   updatedAt                     DateTime          @updatedAt
 
   installments PaymentInstallment[]
   payments     Payment[]
+  versions     PaymentPlanVersion[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, projectId])
+}
+
+// Immutable historical snapshots of a payment plan. One row is written every
+// time the plan is saved (create / update / restore). The full state lives in
+// `snapshot` (JSON) so any version can be viewed or restored later.
+model PaymentPlanVersion {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id])
+  paymentPlanId String
+  paymentPlan   PaymentPlan @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  snapshot      Json
+  createdById   String?
+  createdBy     User?       @relation("PaymentPlanVersionAuthor", fields: [createdById], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@index([paymentPlanId, versionNumber])
+  @@index([workspaceId])
 }
 
 enum InstallmentType {

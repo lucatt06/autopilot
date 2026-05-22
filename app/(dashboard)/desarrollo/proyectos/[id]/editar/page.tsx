@@ -62,6 +62,10 @@ export default async function EditProjectPage({ params }: PageProps) {
                   ? s.expectedDeliveryDate.toISOString().slice(0, 10)
                   : '',
               })),
+              stdReservationAmount: project.stdReservationAmount,
+              stdInitialPercent: project.stdInitialPercent,
+              stdConstructionPercent: project.stdConstructionPercent,
+              stdFinalPercent: project.stdFinalPercent,
             }}
           />
         </CardContent>
